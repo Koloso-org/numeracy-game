@@ -59,7 +59,7 @@ export default function AccountScreen({
         value={username}
         onChangeText={setUsername}
         placeholder="e.g. jb45"
-        placeholderTextColor={COLORS.muted}
+        placeholderTextColor={COLORS.inkMuted}
         autoCapitalize="none"
         autoCorrect={false}
         maxLength={20}
@@ -72,7 +72,7 @@ export default function AccountScreen({
         value={pin}
         onChangeText={(t) => setPin(t.replace(/[^0-9]/g, ''))}
         placeholder="6 digits"
-        placeholderTextColor={COLORS.muted}
+        placeholderTextColor={COLORS.inkMuted}
         keyboardType="number-pad"
         secureTextEntry
         maxLength={PIN_MAX}
@@ -87,7 +87,7 @@ export default function AccountScreen({
         disabled={busy}
       >
         {busy ? (
-          <ActivityIndicator color="#0f172a" />
+          <ActivityIndicator color={COLORS.accentText} />
         ) : (
           <Text style={styles.primaryButtonText}>
             {mode === 'login' ? 'Log in' : 'Create account'}
@@ -117,10 +117,10 @@ export default function AccountScreen({
 
 const styles = StyleSheet.create({
   root: { flex: 1, padding: 24, justifyContent: 'center' },
-  title: { fontSize: 30, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
+  title: { fontSize: 30, fontWeight: '800', color: COLORS.accent, textAlign: 'center' },
   subtitle: {
     fontSize: 15,
-    color: COLORS.muted,
+    color: COLORS.textMuted,
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 20,
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   },
   noticeText: { color: COLORS.warn, fontSize: 14 },
   label: {
-    color: COLORS.muted,
+    color: COLORS.textMuted,
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: COLORS.cardBorder,
-    color: COLORS.text,
+    color: COLORS.ink,
     fontSize: 20,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -159,9 +159,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
   },
-  primaryButtonText: { color: '#0f172a', fontSize: 20, fontWeight: '800' },
+  primaryButtonText: { color: COLORS.accentText, fontSize: 20, fontWeight: '800' },
   pressed: { opacity: 0.7 },
   linkButton: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
   linkText: { color: COLORS.accent, fontSize: 15, fontWeight: '600' },
-  guestText: { color: COLORS.muted, fontSize: 15, fontWeight: '600' },
+  guestText: { color: COLORS.textMuted, fontSize: 15, fontWeight: '600' },
 });

@@ -214,7 +214,7 @@ function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
   const mm = Math.floor(seconds / 60);
   const ss = seconds % 60;
   const timePct = Math.max(0, Math.min(1, timeLeft / GAME_SECONDS));
-  const timeColor = seconds <= 10 ? COLORS.wrong : seconds <= 30 ? COLORS.warn : COLORS.accent;
+  const timeColor = seconds <= 10 ? COLORS.wrong : seconds <= 30 ? COLORS.warn : COLORS.correct;
 
   return (
     <View style={styles.playRoot}>
@@ -380,19 +380,21 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 
   logo: { fontSize: 56, marginBottom: 8 },
-  title: { fontSize: 34, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
+  title: { fontSize: 34, fontWeight: '800', color: COLORS.accent, textAlign: 'center' },
   subtitle: {
     fontSize: 16,
-    color: COLORS.muted,
+    color: COLORS.textMuted,
     marginTop: 10,
     marginBottom: 18,
     textAlign: 'center',
     paddingHorizontal: 12,
   },
-  bold: { color: COLORS.text, fontWeight: '800' },
+  bold: { color: COLORS.ink, fontWeight: '800' },
 
   rulesCard: {
     backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
     borderRadius: 16,
     padding: 18,
     gap: 8,
@@ -400,16 +402,16 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 340,
   },
-  rulesLine: { color: COLORS.muted, fontSize: 15 },
+  rulesLine: { color: COLORS.ink, fontSize: 15 },
 
   bestPill: {
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.selectBg,
     paddingVertical: 8,
     paddingHorizontal: 18,
     borderRadius: 999,
     marginVertical: 14,
   },
-  bestPillText: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
+  bestPillText: { color: COLORS.ink, fontSize: 16, fontWeight: '700' },
 
   primaryButton: {
     backgroundColor: COLORS.accent,
@@ -418,10 +420,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: 8,
   },
-  primaryButtonText: { color: '#0f172a', fontSize: 22, fontWeight: '800' },
+  primaryButtonText: { color: COLORS.accentText, fontSize: 22, fontWeight: '800' },
   outlineButton: {
     borderWidth: 2,
-    borderColor: COLORS.cardBorder,
+    borderColor: COLORS.textMuted,
     paddingVertical: 13,
     paddingHorizontal: 40,
     borderRadius: 14,
@@ -429,12 +431,12 @@ const styles = StyleSheet.create({
   },
   outlineButtonText: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   secondaryButton: { paddingVertical: 12, paddingHorizontal: 24, marginTop: 8 },
-  secondaryButtonText: { color: COLORS.muted, fontSize: 16, fontWeight: '600' },
+  secondaryButtonText: { color: COLORS.textMuted, fontSize: 16, fontWeight: '600' },
   linkButton: { alignItems: 'center', paddingVertical: 10, marginTop: 6 },
   pressed: { opacity: 0.7 },
 
   authRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20, gap: 12 },
-  authText: { color: COLORS.muted, fontSize: 15 },
+  authText: { color: COLORS.textMuted, fontSize: 15 },
   authLink: { color: COLORS.accent, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   rankRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
 
@@ -447,7 +449,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 10,
     borderRadius: 5,
-    backgroundColor: COLORS.card,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     marginTop: 10,
     overflow: 'hidden',
   },
@@ -468,25 +470,25 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
   },
-  ruleSelected: { borderColor: COLORS.accent, backgroundColor: '#0b3a4a' },
-  ruleCorrect: { borderColor: COLORS.correct, backgroundColor: '#0d3b22' },
-  ruleMissed: { borderColor: COLORS.warn, backgroundColor: '#3a2a08' },
-  ruleWrong: { borderColor: COLORS.wrong, backgroundColor: '#3b1414' },
+  ruleSelected: { borderColor: COLORS.accent, backgroundColor: COLORS.selectBg },
+  ruleCorrect: { borderColor: COLORS.correct, backgroundColor: COLORS.correctBg },
+  ruleMissed: { borderColor: COLORS.warn, backgroundColor: COLORS.missBg },
+  ruleWrong: { borderColor: COLORS.wrong, backgroundColor: COLORS.wrongBg },
   ruleFalseOk: { opacity: 0.55 },
   checkbox: {
     width: 26,
     height: 26,
     borderRadius: 7,
     borderWidth: 2,
-    borderColor: COLORS.muted,
+    borderColor: COLORS.inkMuted,
     marginRight: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxOn: { borderColor: COLORS.accent, backgroundColor: COLORS.accent },
-  checkboxTick: { color: '#0f172a', fontSize: 16, fontWeight: '900' },
-  ruleLabel: { color: COLORS.text, fontSize: 19, fontWeight: '600', flex: 1 },
-  ruleMark: { fontSize: 20, fontWeight: '800', marginLeft: 8 },
+  checkboxTick: { color: COLORS.accentText, fontSize: 16, fontWeight: '900' },
+  ruleLabel: { color: COLORS.ink, fontSize: 19, fontWeight: '600', flex: 1 },
+  ruleMark: { color: COLORS.ink, fontSize: 20, fontWeight: '800', marginLeft: 8 },
 
   submitButton: {
     backgroundColor: COLORS.accent,
@@ -495,8 +497,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  submitDisabled: { backgroundColor: COLORS.card },
-  submitText: { color: '#0f172a', fontSize: 20, fontWeight: '800' },
+  submitDisabled: { backgroundColor: 'rgba(255,255,255,0.15)' },
+  submitText: { color: COLORS.accentText, fontSize: 20, fontWeight: '800' },
 
   finalScore: { color: COLORS.accent, fontSize: 72, fontWeight: '800', marginVertical: 6 },
 });
