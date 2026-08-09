@@ -416,9 +416,11 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: COLORS.accent,
     paddingVertical: 16,
-    paddingHorizontal: 64,
+    paddingHorizontal: 32,
     borderRadius: 16,
     marginTop: 8,
+    width: '100%',
+    alignItems: 'center',
   },
   primaryButtonText: { color: COLORS.accentText, fontSize: 22, fontWeight: '800' },
   outlineButton: {
@@ -427,7 +429,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 40,
     borderRadius: 14,
-    marginTop: 12,
+    marginTop: 24,
   },
   outlineButtonText: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   secondaryButton: { paddingVertical: 12, paddingHorizontal: 24, marginTop: 8 },
