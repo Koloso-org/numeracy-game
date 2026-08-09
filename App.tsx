@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   SafeAreaView,
   StyleProp,
@@ -109,7 +110,11 @@ function HomeScreen({
 }) {
   return (
     <View style={styles.centered}>
-      <Text style={styles.logo}>🔎</Text>
+      <Image
+        source={require('./assets/koloso-logo.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>Number Rules</Text>
       <Text style={styles.subtitle}>Pick every rule that's true for the number.</Text>
 
@@ -379,7 +384,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 
-  logo: { fontSize: 56, marginBottom: 8 },
+  logo: { width: 300, height: 125, marginBottom: 18 },
   title: { fontSize: 34, fontWeight: '800', color: COLORS.accent, textAlign: 'center' },
   subtitle: {
     fontSize: 16,
