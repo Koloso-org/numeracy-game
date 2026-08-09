@@ -80,7 +80,6 @@ export default function App() {
           highScore={highScore}
           onPlay={() => setScreen('playing')}
           onLeaderboard={() => setScreen('leaderboard')}
-          onAccount={() => setScreen('account')}
           onLogout={async () => {
             await signOut();
             setUsername(null);
@@ -120,14 +119,12 @@ function HomeScreen({
   highScore,
   onPlay,
   onLeaderboard,
-  onAccount,
   onLogout,
 }: {
   username: string | null;
   highScore: number;
   onPlay: () => void;
   onLeaderboard: () => void;
-  onAccount: () => void;
   onLogout: () => void;
 }) {
   return (
@@ -167,17 +164,13 @@ function HomeScreen({
         <Text style={styles.outlineButtonText}>🏆 Leaderboard</Text>
       </Pressable>
 
-      {username ? (
+      {username && (
         <View style={styles.authRow}>
           <Text style={styles.authText}>Signed in as {username}</Text>
           <Pressable onPress={onLogout} hitSlop={8}>
             <Text style={styles.authLink}>Log out</Text>
           </Pressable>
         </View>
-      ) : (
-        <Pressable onPress={onAccount} style={styles.linkButton}>
-          <Text style={styles.authLink}>Log in / Sign up to join the leaderboard</Text>
-        </Pressable>
       )}
     </View>
   );
@@ -454,9 +447,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.textMuted,
     paddingVertical: 13,
-    paddingHorizontal: 40,
     borderRadius: 14,
     marginTop: 48,
+    width: '100%',
+    alignItems: 'center',
   },
   outlineButtonText: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   secondaryButton: { paddingVertical: 12, paddingHorizontal: 24, marginTop: 8 },
