@@ -185,12 +185,27 @@ function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
   const [lastDelta, setLastDelta] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(GAME_SECONDS);
+  const [count, setCount] = useState(3); // 3-2-1 "get ready" countdown
+  const [started, setStarted] = useState(false);
 
   const timeRef = useRef(GAME_SECONDS);
   const scoreRef = useRef(0);
   const overRef = useRef(false);
 
+  // Countdown: 3 → 2 → 1 → "Go!", then start the game.
   useEffect(() => {
+    if (started) return;
+    if (count <= 0) {
+      const id = setTimeout(() => setStarted(true), 500);
+      return () => clearTimeout(id);
+    }
+    const id = setTimeout(() => setCount((c) => c - 1), 800);
+    return () => clearTimeout(id);
+  }, [count, started]);
+
+  // Game timer — only runs once the countdown has finished.
+  useEffect(() => {
+    if (!started) return;
     const id = setInterval(() => {
       timeRef.current = Math.max(0, timeRef.current - TICK_MS / 1000);
       setTimeLeft(timeRef.current);
@@ -201,7 +216,7 @@ function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
       }
     }, TICK_MS);
     return () => clearInterval(id);
-  }, [onGameOver]);
+  }, [started, onGameOver]);
 
   const toggle = (id: string) => {
     if (revealed || overRef.current) return;
@@ -235,6 +250,15 @@ function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
   const ss = seconds % 60;
   const timePct = Math.max(0, Math.min(1, timeLeft / GAME_SECONDS));
   const timeColor = seconds <= 10 ? COLORS.wrong : seconds <= 30 ? COLORS.warn : COLORS.correct;
+
+  if (!started) {
+    return (
+      <View style={styles.countdownWrap}>
+        <Text style={styles.countdownLabel}>Get ready…</Text>
+        <Text style={styles.countdownNumber}>{count > 0 ? count : 'Go!'}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.playRoot}>
@@ -465,6 +489,9 @@ const styles = StyleSheet.create({
 
   // Play screen
   playRoot: { flex: 1, paddingTop: 64, paddingHorizontal: 20, paddingBottom: 24 },
+  countdownWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  countdownLabel: { color: COLORS.textMuted, fontSize: 24, fontWeight: '700', marginBottom: 8 },
+  countdownNumber: { color: COLORS.accent, fontSize: 140, fontWeight: '800' },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   scoreText: { color: COLORS.text, fontSize: 36, fontWeight: '800' },
   timeText: { fontSize: 28, fontWeight: '800' },
