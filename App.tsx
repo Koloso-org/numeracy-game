@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   SafeAreaView,
   StyleProp,
@@ -11,17 +12,35 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { GAME_SECONDS, Round, generateRound, scoreRound } from './src/rules';
 import { loadHighScore, saveHighScore } from './src/storage';
+import { COLORS } from './src/theme';
+import { currentUsername, signOut } from './src/auth';
+import { supabase } from './src/supabase';
+import { LeaderboardEntry, getMyRank, submitScore } from './src/leaderboard';
+import AccountScreen from './src/screens/AccountScreen';
+import LeaderboardScreen from './src/screens/LeaderboardScreen';
 
-type Screen = 'home' | 'playing' | 'gameover';
+type Screen = 'home' | 'playing' | 'gameover' | 'account' | 'leaderboard';
 const TICK_MS = 100;
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [highScore, setHighScore] = useState(0);
   const [lastScore, setLastScore] = useState(0);
+  const [username, setUsername] = useState<string | null>(null);
 
   useEffect(() => {
     loadHighScore().then(setHighScore);
+  }, []);
+
+  // Track login state.
+  useEffect(() => {
+    if (!supabase) return;
+    currentUsername().then(setUsername);
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      const meta = session?.user?.user_metadata as { username?: string } | undefined;
+      setUsername(meta?.username ?? null);
+    });
+    return () => data.subscription.unsubscribe();
   }, []);
 
   const handleGameOver = useCallback((finalScore: number) => {
@@ -34,16 +53,38 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
       {screen === 'home' && (
-        <HomeScreen highScore={highScore} onStart={() => setScreen('playing')} />
+        <HomeScreen
+          username={username}
+          highScore={highScore}
+          onPlay={() => setScreen('playing')}
+          onLeaderboard={() => setScreen('leaderboard')}
+          onAccount={() => setScreen('account')}
+          onLogout={async () => {
+            await signOut();
+            setUsername(null);
+          }}
+        />
       )}
       {screen === 'playing' && <PlayScreen onGameOver={handleGameOver} />}
       {screen === 'gameover' && (
         <GameOverScreen
           score={lastScore}
           highScore={highScore}
+          username={username}
           onPlayAgain={() => setScreen('playing')}
           onHome={() => setScreen('home')}
+          onLeaderboard={() => setScreen('leaderboard')}
+          onLogin={() => setScreen('account')}
         />
+      )}
+      {screen === 'account' && (
+        <AccountScreen
+          onAuthed={() => setScreen('home')}
+          onGuest={() => setScreen('home')}
+        />
+      )}
+      {screen === 'leaderboard' && (
+        <LeaderboardScreen username={username} onBack={() => setScreen('home')} />
       )}
     </SafeAreaView>
   );
@@ -52,19 +93,25 @@ export default function App() {
 // ---------------------------------------------------------------------------
 
 function HomeScreen({
+  username,
   highScore,
-  onStart,
+  onPlay,
+  onLeaderboard,
+  onAccount,
+  onLogout,
 }: {
+  username: string | null;
   highScore: number;
-  onStart: () => void;
+  onPlay: () => void;
+  onLeaderboard: () => void;
+  onAccount: () => void;
+  onLogout: () => void;
 }) {
   return (
     <View style={styles.centered}>
       <Text style={styles.logo}>🔎</Text>
       <Text style={styles.title}>Number Rules</Text>
-      <Text style={styles.subtitle}>
-        Pick every rule that's true for the number.
-      </Text>
+      <Text style={styles.subtitle}>Pick every rule that's true for the number.</Text>
 
       <View style={styles.rulesCard}>
         <Text style={styles.rulesLine}>➕ <Text style={styles.bold}>+1</Text> for each true rule you pick</Text>
@@ -75,16 +122,36 @@ function HomeScreen({
 
       {highScore !== 0 && (
         <View style={styles.bestPill}>
-          <Text style={styles.bestPillText}>🏆 Best: {highScore}</Text>
+          <Text style={styles.bestPillText}>🏆 Your best: {highScore}</Text>
         </View>
       )}
 
       <Pressable
         style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
-        onPress={onStart}
+        onPress={onPlay}
       >
         <Text style={styles.primaryButtonText}>Play</Text>
       </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [styles.outlineButton, pressed && styles.pressed]}
+        onPress={onLeaderboard}
+      >
+        <Text style={styles.outlineButtonText}>🏆 Leaderboard</Text>
+      </Pressable>
+
+      {username ? (
+        <View style={styles.authRow}>
+          <Text style={styles.authText}>Signed in as {username}</Text>
+          <Pressable onPress={onLogout} hitSlop={8}>
+            <Text style={styles.authLink}>Log out</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable onPress={onAccount} style={styles.linkButton}>
+          <Text style={styles.authLink}>Log in / Sign up to join the leaderboard</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -178,16 +245,16 @@ function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
           if (!revealed) {
             if (isSelected) rowStyles.push(styles.ruleSelected);
           } else if (rule.holds && isSelected) {
-            rowStyles.push(styles.ruleCorrect); // +1
+            rowStyles.push(styles.ruleCorrect);
             mark = '✓';
           } else if (rule.holds && !isSelected) {
-            rowStyles.push(styles.ruleMissed); // -1 (should have picked)
+            rowStyles.push(styles.ruleMissed);
             mark = '✓';
           } else if (!rule.holds && isSelected) {
-            rowStyles.push(styles.ruleWrong); // -1 (shouldn't have picked)
+            rowStyles.push(styles.ruleWrong);
             mark = '✗';
           } else {
-            rowStyles.push(styles.ruleFalseOk); // correct reject
+            rowStyles.push(styles.ruleFalseOk);
           }
           return (
             <Pressable
@@ -226,25 +293,75 @@ function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
 function GameOverScreen({
   score,
   highScore,
+  username,
   onPlayAgain,
   onHome,
+  onLeaderboard,
+  onLogin,
 }: {
   score: number;
   highScore: number;
+  username: string | null;
   onPlayAgain: () => void;
   onHome: () => void;
+  onLeaderboard: () => void;
+  onLogin: () => void;
 }) {
-  const isBest = score >= highScore && score !== 0;
+  const [saving, setSaving] = useState<boolean>(!!username && !!supabase);
+  const [rank, setRank] = useState<LeaderboardEntry | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (username && supabase) {
+      (async () => {
+        await submitScore(score);
+        const mine = await getMyRank();
+        if (active) {
+          setRank(mine);
+          setSaving(false);
+        }
+      })();
+    }
+    return () => {
+      active = false;
+    };
+  }, [score, username]);
+
   return (
     <View style={styles.centered}>
       <Text style={styles.title}>Time's up! ⏱️</Text>
       <Text style={styles.finalScore}>{score}</Text>
-      <Text style={styles.subtitle}>{isBest ? '🎉 New best score!' : `🏆 Best: ${highScore}`}</Text>
+
+      {username ? (
+        saving ? (
+          <View style={styles.rankRow}>
+            <ActivityIndicator color={COLORS.accent} />
+            <Text style={styles.subtitle}>  Saving your score…</Text>
+          </View>
+        ) : rank ? (
+          <Text style={styles.subtitle}>
+            🏆 Best: {rank.best_score}  ·  Rank #{rank.rank}
+          </Text>
+        ) : (
+          <Text style={styles.subtitle}>🏆 Your best: {highScore}</Text>
+        )
+      ) : (
+        <Pressable onPress={onLogin} style={styles.linkButton}>
+          <Text style={styles.authLink}>Log in to save your score & join the leaderboard</Text>
+        </Pressable>
+      )}
+
       <Pressable
         style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
         onPress={onPlayAgain}
       >
         <Text style={styles.primaryButtonText}>Play again</Text>
+      </Pressable>
+      <Pressable
+        style={({ pressed }) => [styles.outlineButton, pressed && styles.pressed]}
+        onPress={onLeaderboard}
+      >
+        <Text style={styles.outlineButtonText}>🏆 Leaderboard</Text>
       </Pressable>
       <Pressable
         style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
@@ -257,18 +374,6 @@ function GameOverScreen({
 }
 
 // ---------------------------------------------------------------------------
-
-const COLORS = {
-  bg: '#0f172a',
-  card: '#1e293b',
-  cardBorder: '#334155',
-  accent: '#38bdf8',
-  warn: '#f59e0b',
-  text: '#f8fafc',
-  muted: '#94a3b8',
-  correct: '#22c55e',
-  wrong: '#ef4444',
-};
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
@@ -314,9 +419,24 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   primaryButtonText: { color: '#0f172a', fontSize: 22, fontWeight: '800' },
+  outlineButton: {
+    borderWidth: 2,
+    borderColor: COLORS.cardBorder,
+    paddingVertical: 13,
+    paddingHorizontal: 40,
+    borderRadius: 14,
+    marginTop: 12,
+  },
+  outlineButtonText: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   secondaryButton: { paddingVertical: 12, paddingHorizontal: 24, marginTop: 8 },
   secondaryButtonText: { color: COLORS.muted, fontSize: 16, fontWeight: '600' },
+  linkButton: { alignItems: 'center', paddingVertical: 10, marginTop: 6 },
   pressed: { opacity: 0.7 },
+
+  authRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20, gap: 12 },
+  authText: { color: COLORS.muted, fontSize: 15 },
+  authLink: { color: COLORS.accent, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  rankRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
 
   // Play screen
   playRoot: { flex: 1, paddingTop: 64, paddingHorizontal: 20, paddingBottom: 24 },

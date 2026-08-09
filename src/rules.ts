@@ -222,6 +222,36 @@ const FACTORIES: Factory[] = [
       return { label: 'A perfect square', holds: want };
     },
   },
+  {
+    // "Square root of X" — is the shown number the square root of X? (n² === X)
+    // Only offered for small numbers so squaring stays mental-maths friendly.
+    type: 'sqrtof',
+    make: (n, want) => {
+      if (n < 2 || n > 31) return null;
+      if (want) return { label: `Square root of ${n * n}`, holds: true };
+      // A neighbouring square makes a fair "false" (√ of it isn't n).
+      let m = n + pick([-3, -2, -1, 1, 2, 3]);
+      if (m < 2) m = n + randInt(1, 3);
+      return { label: `Square root of ${m * m}`, holds: false };
+    },
+  },
+  {
+    // "A factor of Y" — does the shown number divide Y exactly? (Y % n === 0)
+    type: 'factorof',
+    make: (n, want) => {
+      if (n < 2 || n > 300) return null;
+      if (want) {
+        const maxK = Math.floor(999 / n);
+        if (maxK < 2) return null;
+        const y = n * randInt(2, maxK);
+        return { label: `A factor of ${y}`, holds: true };
+      }
+      // A multiple-of-n plus a non-zero remainder is guaranteed not divisible.
+      const base = n * randInt(1, Math.max(1, Math.floor(980 / n)));
+      const y = base + randInt(1, n - 1);
+      return { label: `A factor of ${y}`, holds: false };
+    },
+  },
 ];
 
 // ----- Round generation ------------------------------------------------------
