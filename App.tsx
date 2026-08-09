@@ -49,11 +49,16 @@ export default function App() {
   // create-account / guest screen.
   useEffect(() => {
     let mounted = true;
-    currentUsername().then((u) => {
-      if (!mounted) return;
-      setUsername(u);
-      setScreen(u ? 'home' : 'account');
-    });
+    currentUsername()
+      .then((u) => {
+        if (!mounted) return;
+        setUsername(u);
+        setScreen(u ? 'home' : 'account');
+      })
+      .catch(() => {
+        // If the session check fails (e.g. offline at launch), show login.
+        if (mounted) setScreen('account');
+      });
     if (!supabase) return () => {
       mounted = false;
     };
