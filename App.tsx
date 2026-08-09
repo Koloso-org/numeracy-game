@@ -7,6 +7,7 @@ import {
   StyleProp,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   ViewStyle,
 } from 'react-native';
@@ -28,6 +29,11 @@ export default function App() {
   const [highScore, setHighScore] = useState(0);
   const [lastScore, setLastScore] = useState(0);
   const [username, setUsername] = useState<string | null>(null);
+
+  // Keep the game inside a phone-width "device" on wide screens (desktop/laptop),
+  // centred on a cream surround — matching the Koloso device-frame layout.
+  const { width } = useWindowDimensions();
+  const isWide = width > 480;
 
   useEffect(() => {
     loadHighScore().then(setHighScore);
@@ -63,8 +69,12 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+    <View style={styles.surround}>
+      <View
+        style={[styles.device, isWide && styles.deviceWide]}
+      >
+        <SafeAreaView style={styles.container}>
+          <StatusBar style="light" />
       {screen === 'boot' && (
         <View style={styles.centered}>
           <Image
@@ -108,7 +118,9 @@ export default function App() {
       {screen === 'leaderboard' && (
         <LeaderboardScreen username={username} onBack={() => setScreen('home')} />
       )}
-    </SafeAreaView>
+        </SafeAreaView>
+      </View>
+    </View>
   );
 }
 
@@ -420,6 +432,21 @@ function GameOverScreen({
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
+  surround: {
+    flex: 1,
+    backgroundColor: '#F8F3ED', // paper-cream surround (shows on wide screens)
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  device: { flex: 1, width: '100%', backgroundColor: COLORS.bg, overflow: 'hidden' },
+  deviceWide: {
+    width: 400,
+    maxHeight: 900,
+    marginVertical: 20,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#5A0F01', // burgundy device border
+  },
   container: { flex: 1, backgroundColor: COLORS.bg },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 
