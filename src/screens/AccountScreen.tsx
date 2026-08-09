@@ -71,7 +71,7 @@ export default function AccountScreen({
         style={styles.input}
         value={pin}
         onChangeText={(t) => setPin(t.replace(/[^0-9]/g, ''))}
-        placeholder="4–6 digits"
+        placeholder="6 digits"
         placeholderTextColor={COLORS.muted}
         keyboardType="number-pad"
         secureTextEntry

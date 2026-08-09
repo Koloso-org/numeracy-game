@@ -12,8 +12,9 @@ const EMAIL_DOMAIN = 'players.numbergame.app';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
-export const PIN_MIN = 4;
-export const PIN_MAX = 6;
+// Supabase Auth enforces a minimum password length of 6, so PINs are 6+ digits.
+export const PIN_MIN = 6;
+export const PIN_MAX = 10;
 
 export interface AuthResult {
   ok: boolean;

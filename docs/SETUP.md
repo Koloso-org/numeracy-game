@@ -21,15 +21,17 @@ Supabase project. This takes a few minutes and only has to be done once.
 This creates the `profiles` table, the leaderboard view, security rules, and the
 `submit_score` / `my_rank` functions.
 
-## 3. Allow short PINs and skip email confirmation
+## 3. Turn off email confirmation
 
-Because we use a numeric PIN as the password and a synthetic (never-emailed)
-address:
+Because we use a synthetic (never-emailed) address, Supabase must not wait for
+email confirmation:
 
 1. Go to **Authentication** → **Sign In / Providers** → **Email**.
-2. Set **Minimum password length** to `4` (so 4-digit PINs work).
+2. Make sure **Enable email provider** is **ON**.
 3. Turn **Confirm email** **OFF** (no real emails are ever sent).
-4. Save.
+4. Leave **Minimum password length** at its default (6) — Supabase does not
+   allow lower, so PINs are 6 digits.
+5. Save.
 
 ## 4. Copy your two keys into the app
 
@@ -49,7 +51,8 @@ address:
 4. Restart the Expo dev server (`npm start`) so it picks up the new values.
 
 That's it — the **Log in / Sign up** and **Leaderboard** screens are now live.
-Create the first account (e.g. username `jb45`, PIN `4582`) right in the app.
+Create the first account (e.g. username `jb45`, a 6-digit PIN like `458200`)
+right in the app.
 
 ## How security works (quick summary)
 
