@@ -39,6 +39,24 @@ export function scoreRound(rules: Rule[], selected: Set<string>): number {
   return delta;
 }
 
+/** Points won by a round, split into the plus points and the penalty points. */
+export interface RoundScore {
+  plus: number; // +1 for each true rule correctly selected
+  minus: number; // 1 for each false rule picked, and each true rule missed
+}
+
+export function scoreBreakdown(rules: Rule[], selected: Set<string>): RoundScore {
+  let plus = 0;
+  let minus = 0;
+  for (const rule of rules) {
+    const picked = selected.has(rule.id);
+    if (rule.holds && picked) plus += 1;
+    else if (rule.holds && !picked) minus += 1;
+    else if (!rule.holds && picked) minus += 1;
+  }
+  return { plus, minus };
+}
+
 // ----- Small maths helpers ---------------------------------------------------
 
 /** Inclusive random integer in [min, max]. */

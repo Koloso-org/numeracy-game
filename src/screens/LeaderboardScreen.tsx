@@ -23,6 +23,7 @@ export default function LeaderboardScreen({
   const [me, setMe] = useState<LeaderboardEntry | null>(null);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) return;
     let active = true;
     (async () => {
       const [t, m] = await Promise.all([getTopScores(20), getMyRank()]);
@@ -65,17 +66,26 @@ export default function LeaderboardScreen({
           <Text style={styles.emptyText}>Be the first to get on the board!</Text>
         </View>
       ) : (
-        <FlatList
-          data={top}
-          keyExtractor={(item) => item.username}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <Row entry={item} highlight={item.username === username} />
-          )}
-        />
+        <>
+          <View style={styles.colHeader}>
+            <Text style={[styles.colRank, styles.colHeadText]}>#</Text>
+            <Text style={[styles.colName, styles.colHeadText]}>NAME</Text>
+            <Text style={[styles.colNum, styles.colHeadText]}>+</Text>
+            <Text style={[styles.colNum, styles.colHeadText]}>−</Text>
+            <Text style={[styles.colNet, styles.colHeadText]}>NET</Text>
+          </View>
+          <FlatList
+            data={top}
+            keyExtractor={(item) => item.username}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <Row entry={item} highlight={item.username === username} />
+            )}
+          />
+        </>
       )}
 
-      {/* If the player is ranked but outside the top 20, show their row pinned. */}
+      {/* If the player is ranked but outside the top 20, pin their row. */}
       {isSupabaseConfigured && me && !meInTop && (
         <View style={styles.pinned}>
           <Row entry={me} highlight />
@@ -85,15 +95,34 @@ export default function LeaderboardScreen({
   );
 }
 
+function RankBadge({ rank }: { rank: number }) {
+  const bg =
+    rank === 1 ? COLORS.accent : rank === 2 ? '#AEB6B1' : rank === 3 ? '#B46004' : null;
+  if (bg == null) {
+    return <Text style={styles.rankPlain}>{rank}</Text>;
+  }
+  return (
+    <View style={[styles.badge, { backgroundColor: bg }]}>
+      <Text style={[styles.badgeText, { color: rank === 1 ? COLORS.accentText : '#FFFFFF' }]}>
+        {rank}
+      </Text>
+    </View>
+  );
+}
+
 function Row({ entry, highlight }: { entry: LeaderboardEntry; highlight: boolean }) {
   return (
     <View style={[styles.row, highlight && styles.rowMe]}>
-      <Text style={[styles.rank, highlight && styles.textMe]}>#{entry.rank}</Text>
-      <Text style={[styles.name, highlight && styles.textMe]} numberOfLines={1}>
+      <View style={styles.rankCell}>
+        <RankBadge rank={entry.rank} />
+      </View>
+      <Text style={styles.name} numberOfLines={1}>
         {entry.username}
-        {highlight ? '  (you)' : ''}
+        {highlight ? '  (You)' : ''}
       </Text>
-      <Text style={[styles.score, highlight && styles.textMe]}>{entry.best_score}</Text>
+      <Text style={styles.plus}>{entry.total_plus}</Text>
+      <Text style={styles.minus}>{entry.total_minus}</Text>
+      <Text style={styles.net}>{entry.net}</Text>
     </View>
   );
 }
@@ -105,28 +134,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   back: { color: COLORS.accent, fontSize: 17, fontWeight: '700', width: 54 },
   title: { color: COLORS.text, fontSize: 22, fontWeight: '800' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emptyBig: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginBottom: 8 },
   emptyText: { color: COLORS.textMuted, fontSize: 15, textAlign: 'center', lineHeight: 22 },
-  list: { paddingHorizontal: 20, paddingBottom: 20 },
+
+  colHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 26, marginBottom: 6 },
+  colHeadText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  colRank: { width: 40 },
+  colName: { flex: 1 },
+  colNum: { width: 46, textAlign: 'right' },
+  colNet: { width: 56, textAlign: 'right' },
+
+  list: { paddingHorizontal: 16, paddingBottom: 20 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
     borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     marginBottom: 8,
   },
-  rowMe: { backgroundColor: COLORS.selectBg, borderWidth: 2, borderColor: COLORS.accent },
-  rank: { color: COLORS.inkMuted, fontSize: 16, fontWeight: '800', width: 52 },
-  name: { color: COLORS.ink, fontSize: 18, fontWeight: '700', flex: 1 },
-  score: { color: COLORS.ink, fontSize: 18, fontWeight: '800' },
-  textMe: { color: COLORS.correct },
+  rowMe: {
+    backgroundColor: COLORS.selectBg,
+    borderLeftWidth: 5,
+    borderLeftColor: COLORS.accent,
+    paddingLeft: 5,
+  },
+  rankCell: { width: 40, justifyContent: 'center' },
+  badge: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontSize: 14, fontWeight: '800' },
+  rankPlain: { width: 28, textAlign: 'center', color: COLORS.inkMuted, fontSize: 15, fontWeight: '800' },
+  name: { flex: 1, color: COLORS.ink, fontSize: 16, fontWeight: '700' },
+  plus: { width: 46, textAlign: 'right', color: COLORS.correct, fontSize: 15, fontWeight: '800' },
+  minus: { width: 46, textAlign: 'right', color: COLORS.wrong, fontSize: 15, fontWeight: '800' },
+  net: { width: 56, textAlign: 'right', color: COLORS.ink, fontSize: 16, fontWeight: '800' },
   pinned: {
     paddingHorizontal: 20,
     paddingBottom: 24,

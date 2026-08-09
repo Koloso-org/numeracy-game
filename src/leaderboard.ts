@@ -1,38 +1,38 @@
 // Leaderboard reads/writes for Number Rules.
+//
+// Each game contributes its plus points and penalty (minus) points. The server
+// accumulates cumulative totals per player; the leaderboard ranks by NET points
+// (plus − minus) high→low, tie-broken by fewer penalty points (minus low→high).
 
 import { supabase } from './supabase';
 
 export interface LeaderboardEntry {
   username: string;
-  best_score: number;
+  total_plus: number;
+  total_minus: number;
+  net: number;
   rank: number;
 }
 
-/**
- * Submit a finished-game score. The server keeps only the player's best, and
- * never lowers it. Returns the player's new best, or null if not logged in /
- * not configured.
- */
-export async function submitScore(score: number): Promise<number | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.rpc('submit_score', { p_score: score });
-  if (error) return null;
-  return typeof data === 'number' ? data : null;
+/** Record a finished game's plus points and penalty points. */
+export async function submitGame(plus: number, minus: number): Promise<void> {
+  if (!supabase) return;
+  await supabase.rpc('submit_game', { p_plus: plus, p_minus: minus });
 }
 
-/** Top N players, best score first. */
+/** Top N players, best net first. */
 export async function getTopScores(limit = 20): Promise<LeaderboardEntry[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('leaderboard')
-    .select('username, best_score, rank')
+    .select('username, total_plus, total_minus, net, rank')
     .order('rank', { ascending: true })
     .limit(limit);
   if (error || !data) return [];
   return data as LeaderboardEntry[];
 }
 
-/** The current player's own rank + best score, or null if unranked / guest. */
+/** The current player's own rank + totals, or null if unranked / guest. */
 export async function getMyRank(): Promise<LeaderboardEntry | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.rpc('my_rank');

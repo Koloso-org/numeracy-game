@@ -12,22 +12,27 @@ import {
   ViewStyle,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { GAME_SECONDS, Round, generateRound, scoreRound } from './src/rules';
+import { GAME_SECONDS, Round, generateRound, scoreBreakdown } from './src/rules';
 import { loadHighScore, saveHighScore } from './src/storage';
 import { COLORS } from './src/theme';
 import { currentUsername, signOut } from './src/auth';
 import { supabase } from './src/supabase';
-import { LeaderboardEntry, getMyRank, submitScore } from './src/leaderboard';
+import { LeaderboardEntry, getMyRank, submitGame } from './src/leaderboard';
 import AccountScreen from './src/screens/AccountScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
 
 type Screen = 'boot' | 'home' | 'playing' | 'gameover' | 'account' | 'leaderboard';
 const TICK_MS = 100;
 
+interface GameResult {
+  plus: number; // total points won
+  minus: number; // total penalty points
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('boot');
   const [highScore, setHighScore] = useState(0);
-  const [lastScore, setLastScore] = useState(0);
+  const [lastResult, setLastResult] = useState<GameResult>({ plus: 0, minus: 0 });
   const [username, setUsername] = useState<string | null>(null);
 
   // Keep the game inside a phone-width "device" on wide screens (desktop/laptop),
@@ -62,9 +67,9 @@ export default function App() {
     };
   }, []);
 
-  const handleGameOver = useCallback((finalScore: number) => {
-    setLastScore(finalScore);
-    saveHighScore(finalScore).then(setHighScore);
+  const handleGameOver = useCallback((result: GameResult) => {
+    setLastResult(result);
+    saveHighScore(result.plus - result.minus).then(setHighScore);
     setScreen('gameover');
   }, []);
 
@@ -100,7 +105,7 @@ export default function App() {
       {screen === 'playing' && <PlayScreen onGameOver={handleGameOver} />}
       {screen === 'gameover' && (
         <GameOverScreen
-          score={lastScore}
+          result={lastResult}
           highScore={highScore}
           username={username}
           onPlayAgain={() => setScreen('playing')}
@@ -190,7 +195,7 @@ function HomeScreen({
 
 // ---------------------------------------------------------------------------
 
-function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
+function PlayScreen({ onGameOver }: { onGameOver: (result: GameResult) => void }) {
   const [round, setRound] = useState<Round>(() => generateRound());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState(false);
@@ -201,7 +206,8 @@ function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
   const [started, setStarted] = useState(false);
 
   const timeRef = useRef(GAME_SECONDS);
-  const scoreRef = useRef(0);
+  const plusRef = useRef(0);
+  const minusRef = useRef(0);
   const overRef = useRef(false);
 
   // Countdown: 3 → 2 → 1 → "Go!", then start the game.
@@ -224,7 +230,7 @@ function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
       if (timeRef.current <= 0 && !overRef.current) {
         overRef.current = true;
         clearInterval(id);
-        onGameOver(scoreRef.current);
+        onGameOver({ plus: plusRef.current, minus: minusRef.current });
       }
     }, TICK_MS);
     return () => clearInterval(id);
@@ -242,10 +248,11 @@ function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
 
   const submit = () => {
     if (revealed || overRef.current) return;
-    const delta = scoreRound(round.rules, selected);
-    scoreRef.current += delta;
-    setScore(scoreRef.current);
-    setLastDelta(delta);
+    const { plus, minus } = scoreBreakdown(round.rules, selected);
+    plusRef.current += plus;
+    minusRef.current += minus;
+    setScore(plusRef.current - minusRef.current);
+    setLastDelta(plus - minus);
     setRevealed(true);
 
     setTimeout(() => {
@@ -347,7 +354,7 @@ function PlayScreen({ onGameOver }: { onGameOver: (score: number) => void }) {
 // ---------------------------------------------------------------------------
 
 function GameOverScreen({
-  score,
+  result,
   highScore,
   username,
   onPlayAgain,
@@ -355,7 +362,7 @@ function GameOverScreen({
   onLeaderboard,
   onLogin,
 }: {
-  score: number;
+  result: GameResult;
   highScore: number;
   username: string | null;
   onPlayAgain: () => void;
@@ -363,6 +370,7 @@ function GameOverScreen({
   onLeaderboard: () => void;
   onLogin: () => void;
 }) {
+  const net = result.plus - result.minus;
   const [saving, setSaving] = useState<boolean>(!!username && !!supabase);
   const [rank, setRank] = useState<LeaderboardEntry | null>(null);
 
@@ -370,7 +378,7 @@ function GameOverScreen({
     let active = true;
     if (username && supabase) {
       (async () => {
-        await submitScore(score);
+        await submitGame(result.plus, result.minus);
         const mine = await getMyRank();
         if (active) {
           setRank(mine);
@@ -381,25 +389,30 @@ function GameOverScreen({
     return () => {
       active = false;
     };
-  }, [score, username]);
+  }, [result.plus, result.minus, username]);
 
   return (
     <View style={styles.centered}>
       <Text style={styles.title}>Time's up! ⏱️</Text>
-      <Text style={styles.finalScore}>{score}</Text>
+      <Text style={styles.finalScore}>{net}</Text>
+      <Text style={styles.breakdown}>
+        <Text style={{ color: COLORS.correct }}>+{result.plus}</Text>
+        {'      '}
+        <Text style={{ color: COLORS.wrong }}>−{result.minus}</Text>
+      </Text>
 
       {username ? (
         saving ? (
           <View style={styles.rankRow}>
             <ActivityIndicator color={COLORS.accent} />
-            <Text style={styles.subtitle}>  Saving your score…</Text>
+            <Text style={styles.subtitle}>  Saving…</Text>
           </View>
         ) : rank ? (
           <Text style={styles.subtitle}>
-            🏆 Best: {rank.best_score}  ·  Rank #{rank.rank}
+            🏆 Rank #{rank.rank}  ·  Net {rank.net}
           </Text>
         ) : (
-          <Text style={styles.subtitle}>🏆 Your best: {highScore}</Text>
+          <Text style={styles.subtitle}>🏆 Your best game: {highScore}</Text>
         )
       ) : (
         <Pressable onPress={onLogin} style={styles.linkButton}>
@@ -577,5 +590,6 @@ const styles = StyleSheet.create({
   submitDisabled: { backgroundColor: 'rgba(255,255,255,0.15)' },
   submitText: { color: COLORS.accentText, fontSize: 20, fontWeight: '800' },
 
-  finalScore: { color: COLORS.accent, fontSize: 72, fontWeight: '800', marginVertical: 6 },
+  finalScore: { color: COLORS.accent, fontSize: 72, fontWeight: '800', marginTop: 6 },
+  breakdown: { fontSize: 22, fontWeight: '800', marginBottom: 12 },
 });
