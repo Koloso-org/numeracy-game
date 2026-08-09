@@ -1,65 +1,37 @@
-// Pure game logic for the numeracy game.
-// Kept free of React/React Native so it can be unit-tested in isolation.
+// Pure game logic for "Number Blitz" — a beat-the-clock mental-maths sprint.
+// No React / React Native imports here so it can be unit-tested in isolation.
 
-export type Operation = '+' | '-' | '×';
+export type Operation = '+' | '-' | '×' | '÷';
 
 export interface Question {
-  a: number;
-  b: number;
-  op: Operation;
+  /** Display string, e.g. "7 × 8". */
+  prompt: string;
   answer: number;
-  /** Multiple-choice options including the correct answer, shuffled. */
+  /** Four multiple-choice options including the correct answer, shuffled. */
   options: number[];
 }
 
-export type Difficulty = 'easy' | 'medium' | 'hard';
+// ----- Tunable game settings -------------------------------------------------
 
-interface DifficultyConfig {
-  maxOperand: number;
-  operations: Operation[];
-}
+/** Seconds on the clock at the start of a run. */
+export const START_TIME = 30;
+/** Seconds added to the clock for a correct answer. */
+export const TIME_BONUS = 1.5;
+/** Seconds removed from the clock for a wrong answer. */
+export const TIME_PENALTY = 3;
+/** Base points for a correct answer, before the combo multiplier. */
+export const BASE_POINTS = 5;
+/** Highest combo multiplier the player can reach. */
+export const MAX_MULTIPLIER = 5;
 
-const DIFFICULTY: Record<Difficulty, DifficultyConfig> = {
-  easy: { maxOperand: 10, operations: ['+', '-'] },
-  medium: { maxOperand: 20, operations: ['+', '-', '×'] },
-  hard: { maxOperand: 50, operations: ['+', '-', '×'] },
-};
+/** Combo multiplier grows by 1 every this-many answers in a streak. */
+const COMBO_STEP = 3;
+
+// ----- Helpers ---------------------------------------------------------------
 
 /** Inclusive random integer in [min, max]. */
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function compute(a: number, b: number, op: Operation): number {
-  switch (op) {
-    case '+':
-      return a + b;
-    case '-':
-      return a - b;
-    case '×':
-      return a * b;
-  }
-}
-
-/** Build a set of 4 plausible, distinct multiple-choice options. */
-export function buildOptions(answer: number): number[] {
-  const options = new Set<number>([answer]);
-  let guard = 0;
-  while (options.size < 4 && guard < 50) {
-    guard += 1;
-    const spread = Math.max(3, Math.round(Math.abs(answer) * 0.25));
-    const distractor = answer + randInt(-spread, spread);
-    if (distractor !== answer) {
-      options.add(distractor);
-    }
-  }
-  // Fallback in the rare case the loop couldn't find enough distractors.
-  let filler = answer + 1;
-  while (options.size < 4) {
-    if (!options.has(filler)) options.add(filler);
-    filler += 1;
-  }
-  return shuffle([...options]);
 }
 
 /** Fisher–Yates shuffle (returns a new array). */
@@ -72,27 +44,81 @@ export function shuffle<T>(input: T[]): T[] {
   return arr;
 }
 
-/** Generate a single question for the given difficulty. */
-export function generateQuestion(difficulty: Difficulty): Question {
-  const { maxOperand, operations } = DIFFICULTY[difficulty];
-  const op = operations[randInt(0, operations.length - 1)];
-
-  let a = randInt(1, maxOperand);
-  let b = randInt(1, maxOperand);
-
-  // Keep subtraction results non-negative for young learners.
-  if (op === '-' && b > a) {
-    [a, b] = [b, a];
-  }
-  // Keep multiplication approachable regardless of difficulty ceiling.
-  if (op === '×') {
-    a = randInt(2, 12);
-    b = randInt(2, 12);
-  }
-
-  const answer = compute(a, b, op);
-  return { a, b, op, answer, options: buildOptions(answer) };
+/** The score multiplier for a given combo (consecutive correct answers). */
+export function multiplierForCombo(combo: number): number {
+  return Math.min(MAX_MULTIPLIER, 1 + Math.floor(combo / COMBO_STEP));
 }
 
-export const POINTS_PER_CORRECT = 10;
-export const ROUND_LENGTH = 10; // questions per round
+/** Build four distinct, plausible multiple-choice options around the answer. */
+export function buildOptions(answer: number): number[] {
+  const options = new Set<number>([answer]);
+  const spread = Math.max(3, Math.round(Math.abs(answer) * 0.25));
+  let guard = 0;
+  while (options.size < 4 && guard < 60) {
+    guard += 1;
+    const distractor = answer + randInt(-spread, spread);
+    if (distractor >= 0 && distractor !== answer) options.add(distractor);
+  }
+  // Fallback if we couldn't find enough non-negative distractors.
+  let filler = answer + 1;
+  while (options.size < 4) {
+    if (!options.has(filler)) options.add(filler);
+    filler += 1;
+  }
+  return shuffle([...options]);
+}
+
+/**
+ * Generate a question whose difficulty scales with how many the player has
+ * already answered correctly this run. This keeps a single run interesting
+ * across the whole 8–14 age range: gentle at first, tougher as the streak grows.
+ */
+export function generateQuestion(correctSoFar: number): Question {
+  const tier = Math.min(3, Math.floor(correctSoFar / 5)); // 0,1,2,3
+  const ops: Operation[] =
+    tier === 0
+      ? ['+', '-']
+      : tier === 1
+        ? ['+', '-', '×']
+        : ['+', '-', '×', '÷'];
+  const op = ops[randInt(0, ops.length - 1)];
+
+  let a: number;
+  let b: number;
+  let answer: number;
+
+  switch (op) {
+    case '+': {
+      const max = [12, 20, 50, 99][tier];
+      a = randInt(1, max);
+      b = randInt(1, max);
+      answer = a + b;
+      break;
+    }
+    case '-': {
+      const max = [12, 20, 50, 99][tier];
+      a = randInt(1, max);
+      b = randInt(1, a); // keep the result non-negative
+      answer = a - b;
+      break;
+    }
+    case '×': {
+      const max = [5, 10, 12, 12][tier];
+      a = randInt(2, max);
+      b = randInt(2, max);
+      answer = a * b;
+      break;
+    }
+    case '÷': {
+      // Build from an exact division so the answer is always a whole number.
+      const divisor = randInt(2, 12);
+      const quotient = randInt(2, 12);
+      a = divisor * quotient;
+      b = divisor;
+      answer = quotient;
+      break;
+    }
+  }
+
+  return { prompt: `${a} ${op} ${b}`, answer, options: buildOptions(answer) };
+}

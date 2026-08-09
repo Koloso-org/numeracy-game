@@ -1,60 +1,64 @@
-# Numeracy Game
+# Number Blitz
 
-A simple numeracy (mental-maths) game for mobile, built with [Expo](https://expo.dev) and React Native + TypeScript.
+A fast-paced numeracy (mental-maths) arcade game for mobile, aimed at
+**8–14 year olds**. Built with [Expo](https://expo.dev) and React Native +
+TypeScript.
 
 This is a **standalone product**, separate from the main Koloso app. It may be
 incorporated into Koloso in the future, but it is developed, versioned, and
 published independently.
 
-## What it does (current MVP)
+## How it plays
 
-- Pick a difficulty (Easy / Medium / Hard).
-- Answer a round of 10 multiple-choice arithmetic questions (+ − ×).
-- Immediate correct/incorrect feedback, running score, and an end-of-round summary.
+- You get **30 seconds** on the clock.
+- Solve as many arithmetic problems as you can before time runs out.
+- ✅ **Correct** → adds time and builds your **combo multiplier** (bigger combo = more points per answer).
+- ❌ **Wrong** → costs time and resets your combo.
+- The maths gets **harder the longer your streak** (starts with + and −, then bigger numbers, then × and ÷) so it scales across the whole 8–14 range.
+- Your **best score** is saved between plays.
 
-Game logic lives in `src/game.ts` (pure, framework-free functions) so it can be
-unit-tested and reused. The UI lives in `App.tsx`.
+## Code layout
 
-## Getting started
+```
+App.tsx          # Screens (home / playing / game-over) and the game loop/timer
+src/game.ts      # Pure logic: question generation, difficulty scaling, scoring
+src/storage.ts   # Saves/loads the best score (AsyncStorage; localStorage on web)
+assets/          # App icon, splash, adaptive icons
+app.json         # Expo app configuration
+```
+
+The logic in `src/game.ts` is deliberately free of any React/React Native code
+so it can be unit-tested and reused.
+
+## Run it
 
 ```bash
 npm install
 npm start          # opens the Expo dev server
 ```
 
-Then:
-
-- Press `i` for the iOS simulator (macOS only), `a` for an Android emulator, or
-- Scan the QR code with the **Expo Go** app on a physical device, or
-- Press `w` to run in a web browser.
-
-## Project structure
-
-```
-App.tsx        # Screens: home, playing, results
-src/game.ts    # Question generation, scoring, difficulty config (pure logic)
-assets/        # App icon, splash, adaptive icons
-app.json       # Expo app configuration (name, slug, icons, platforms)
-```
+Then press `i` (iOS simulator, macOS only), `a` (Android emulator), `w` (web),
+or scan the QR code with the **Expo Go** app on a real phone.
 
 ## Publishing (later)
 
-Because this uses Expo, releasing to the App Store and Google Play is handled
-via [EAS](https://docs.expo.dev/eas/):
+Because this uses Expo, releasing to the App Store and Google Play is done via
+[EAS](https://docs.expo.dev/eas/):
 
 ```bash
 npm install -g eas-cli
 eas build --platform all     # cloud builds for iOS + Android
-eas submit                   # upload to App Store Connect / Play Console
+eas submit                   # upload to the stores
 ```
 
-Store accounts (Apple Developer Program, Google Play Console) are needed before
-the first submission.
+Apple Developer and Google Play Console accounts are needed before the first
+submission.
 
-## Roadmap ideas
+## Ideas for later
 
-- Per-question countdown timer and streak bonuses
-- Persistent high scores (local storage)
-- More operations (division, fractions) and adaptive difficulty
-- Sound and haptics
+- Sound effects and haptics on correct/wrong
+- Tile "pop" animations and a countdown-urgency effect
+- Daily challenge / shareable scores
+- Choosable focus (e.g. "times tables only") and adjustable starting time
 - Accessibility passes (screen-reader labels, larger-text support)
+```
