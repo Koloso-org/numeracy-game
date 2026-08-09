@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 40,
     borderRadius: 14,
-    marginTop: 24,
+    marginTop: 48,
   },
   outlineButtonText: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   secondaryButton: { paddingVertical: 12, paddingHorizontal: 24, marginTop: 8 },
