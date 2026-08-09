@@ -20,11 +20,11 @@ import { LeaderboardEntry, getMyRank, submitScore } from './src/leaderboard';
 import AccountScreen from './src/screens/AccountScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
 
-type Screen = 'home' | 'playing' | 'gameover' | 'account' | 'leaderboard';
+type Screen = 'boot' | 'home' | 'playing' | 'gameover' | 'account' | 'leaderboard';
 const TICK_MS = 100;
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('home');
+  const [screen, setScreen] = useState<Screen>('boot');
   const [highScore, setHighScore] = useState(0);
   const [lastScore, setLastScore] = useState(0);
   const [username, setUsername] = useState<string | null>(null);
@@ -33,15 +33,27 @@ export default function App() {
     loadHighScore().then(setHighScore);
   }, []);
 
-  // Track login state.
+  // On launch, decide the first screen: a returning player whose login is
+  // remembered skips straight to home; everyone else starts on the login /
+  // create-account / guest screen.
   useEffect(() => {
-    if (!supabase) return;
-    currentUsername().then(setUsername);
+    let mounted = true;
+    currentUsername().then((u) => {
+      if (!mounted) return;
+      setUsername(u);
+      setScreen(u ? 'home' : 'account');
+    });
+    if (!supabase) return () => {
+      mounted = false;
+    };
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       const meta = session?.user?.user_metadata as { username?: string } | undefined;
       setUsername(meta?.username ?? null);
     });
-    return () => data.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   const handleGameOver = useCallback((finalScore: number) => {
@@ -53,6 +65,15 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
+      {screen === 'boot' && (
+        <View style={styles.centered}>
+          <Image
+            source={require('./assets/koloso-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
+      )}
       {screen === 'home' && (
         <HomeScreen
           username={username}
@@ -63,6 +84,7 @@ export default function App() {
           onLogout={async () => {
             await signOut();
             setUsername(null);
+            setScreen('account');
           }}
         />
       )}

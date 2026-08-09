@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -40,6 +41,11 @@ export default function AccountScreen({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.root}
     >
+      <Image
+        source={require('../../assets/koloso-logo.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>{mode === 'login' ? 'Log in' : 'Create account'}</Text>
       <Text style={styles.subtitle}>
         Just pick a username and a PIN — no email, no personal details.
@@ -117,6 +123,7 @@ export default function AccountScreen({
 
 const styles = StyleSheet.create({
   root: { flex: 1, padding: 24, justifyContent: 'center' },
+  logo: { width: 150, height: 63, alignSelf: 'center', marginBottom: 24 },
   title: { fontSize: 30, fontWeight: '800', color: COLORS.accent, textAlign: 'center' },
   subtitle: {
     fontSize: 15,
