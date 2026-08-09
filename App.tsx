@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 
-  logo: { width: 300, height: 125, marginBottom: 18 },
+  logo: { width: 150, height: 63, marginBottom: 18 },
   title: { fontSize: 34, fontWeight: '800', color: COLORS.accent, textAlign: 'center' },
   subtitle: {
     fontSize: 16,
