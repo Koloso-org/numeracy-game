@@ -26,13 +26,12 @@ drop policy if exists "profiles are readable by everyone" on public.profiles;
 create policy "profiles are readable by everyone"
   on public.profiles for select
   using (true);
+grant select on public.profiles to anon, authenticated;
 
--- A logged-in player may read/refresh only their own row directly.
+-- Note: players deliberately get NO direct INSERT/UPDATE. Profiles are created
+-- by the trigger below, and scores change only through submit_score() — so a
+-- player can never set an arbitrary score by writing to the table directly.
 drop policy if exists "players manage their own profile" on public.profiles;
-create policy "players manage their own profile"
-  on public.profiles for update
-  using (auth.uid() = id)
-  with check (auth.uid() = id);
 
 -- 2) Auto-create a profile when a new auth user signs up ----------------------
 create or replace function public.handle_new_user()
@@ -55,6 +54,9 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- This is a trigger-only function; no one should call it directly.
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 -- 3) Submit a score (only raises your own best; never lowers it) --------------
 create or replace function public.submit_score(p_score integer)
@@ -79,6 +81,8 @@ begin
 end;
 $$;
 
+-- Only logged-in players may call it (and it still checks auth.uid() inside).
+revoke execute on function public.submit_score(integer) from public, anon;
 grant execute on function public.submit_score(integer) to authenticated;
 
 -- 4) Leaderboard view (ranked; only players who have scored) ------------------
@@ -90,6 +94,10 @@ create or replace view public.leaderboard as
   from public.profiles
   where best_score > 0;
 
+-- security_invoker makes the view run with the caller's own permissions (and
+-- RLS), instead of the view owner's — this clears Supabase's "Security Definer
+-- View" advisory. Reading still works because profiles is publicly readable.
+alter view public.leaderboard set (security_invoker = on);
 grant select on public.leaderboard to anon, authenticated;
 
 -- 5) The caller's own rank + best score ---------------------------------------
@@ -104,4 +112,5 @@ as $$
   where p.id = auth.uid();
 $$;
 
+revoke execute on function public.my_rank() from public, anon;
 grant execute on function public.my_rank() to authenticated;
