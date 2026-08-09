@@ -7,8 +7,10 @@
 
 import { supabase } from './supabase';
 
-/** Synthetic email domain — no mail is ever sent here. */
-const EMAIL_DOMAIN = 'players.numbergame.app';
+// Synthetic login-email domain — no mail is ever sent here. Supabase requires a
+// REAL, mail-capable domain (it rejects made-up ones), so this must be a domain
+// you own. Override it with EXPO_PUBLIC_LOGIN_EMAIL_DOMAIN in .env.
+const EMAIL_DOMAIN = process.env.EXPO_PUBLIC_LOGIN_EMAIL_DOMAIN ?? 'koloso.app';
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
