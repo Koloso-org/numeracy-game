@@ -341,6 +341,75 @@ const FACTORIES: Factory[] = [
       return null;
     },
   },
+  {
+    // Weights & measures — mass: "... Y packets of Z kg each" (target = Y × Z).
+    type: 'masspackets',
+    make: (n, want) => {
+      const comp = pick(['same', 'more', 'less']);
+      if (comp === 'same') {
+        if (want) {
+          const pairs: [number, number][] = [];
+          for (let y = 2; y <= 12; y += 1) {
+            if (n % y === 0 && n / y >= 2 && n / y <= 20) pairs.push([y, n / y]);
+          }
+          if (pairs.length === 0) return null;
+          const [y, z] = pick(pairs);
+          return { label: `The same as ${y} packets of ${z} kg each`, holds: true };
+        }
+        const y = randInt(2, 12);
+        const z = randInt(2, 20);
+        if (y * z === n) return null;
+        return { label: `The same as ${y} packets of ${z} kg each`, holds: false };
+      }
+      for (let i = 0; i < 40; i += 1) {
+        const y = randInt(2, 12);
+        const z = randInt(2, 20);
+        const target = y * z;
+        const holds = comp === 'more' ? n > target : n < target;
+        if (holds === want) {
+          const word = comp === 'more' ? 'More than' : 'Less than';
+          return { label: `${word} ${y} packets of ${z} kg each`, holds: want };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    // Weights & measures — length: "... M m minus Z cm" (target = M×100 − Z cm).
+    type: 'lengthcm',
+    make: (n, want) => {
+      const comp = pick(['same', 'more', 'less']);
+      // k is tenths of a metre (10 → 1.0 m); shown with no trailing ".0".
+      const fmt = (k: number) => (k % 10 === 0 ? String(k / 10) : (k / 10).toFixed(1));
+      if (comp === 'same') {
+        if (want) {
+          const opts: [number, number][] = [];
+          for (let k = 10; k <= 30; k += 1) {
+            const z = 10 * k - n;
+            if (z >= 5 && z <= 90) opts.push([k, z]);
+          }
+          if (opts.length === 0) return null;
+          const [k, z] = pick(opts);
+          return { label: `The same as ${fmt(k)} m minus ${z} cm`, holds: true };
+        }
+        const k = randInt(10, 30);
+        const z = randInt(5, 90);
+        if (10 * k - z === n) return null;
+        return { label: `The same as ${fmt(k)} m minus ${z} cm`, holds: false };
+      }
+      for (let i = 0; i < 40; i += 1) {
+        const k = randInt(10, 30);
+        const z = randInt(5, 90);
+        const target = 10 * k - z;
+        const holds = comp === 'more' ? n > target : n < target;
+        if (holds === want) {
+          const word = comp === 'more' ? 'More than' : 'Less than';
+          return { label: `${word} ${fmt(k)} m minus ${z} cm`, holds: want };
+        }
+      }
+      return null;
+    },
+  },
 ];
 
 // ----- Round generation ------------------------------------------------------
