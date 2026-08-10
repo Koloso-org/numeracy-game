@@ -20,8 +20,17 @@ import { supabase } from './src/supabase';
 import { LeaderboardEntry, getMyRank, submitGame } from './src/leaderboard';
 import AccountScreen from './src/screens/AccountScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
+import CrossNumberScreen from './src/screens/CrossNumberScreen';
 
-type Screen = 'boot' | 'home' | 'playing' | 'gameover' | 'account' | 'leaderboard';
+type Screen =
+  | 'boot'
+  | 'menu'
+  | 'home'
+  | 'playing'
+  | 'gameover'
+  | 'account'
+  | 'leaderboard'
+  | 'crossnumber';
 const TICK_MS = 100;
 
 interface GameResult {
@@ -53,7 +62,7 @@ export default function App() {
       .then((u) => {
         if (!mounted) return;
         setUsername(u);
-        setScreen(u ? 'home' : 'account');
+        setScreen(u ? 'menu' : 'account');
       })
       .catch(() => {
         // If the session check fails (e.g. offline at launch), show login.
@@ -94,10 +103,23 @@ export default function App() {
           />
         </View>
       )}
+      {screen === 'menu' && (
+        <GameMenuScreen
+          username={username}
+          onNumberRules={() => setScreen('home')}
+          onCrossNumber={() => setScreen('crossnumber')}
+          onLogout={async () => {
+            await signOut();
+            setUsername(null);
+            setScreen('account');
+          }}
+        />
+      )}
       {screen === 'home' && (
         <HomeScreen
           username={username}
           highScore={highScore}
+          onBack={() => setScreen('menu')}
           onPlay={() => setScreen('playing')}
           onLeaderboard={() => setScreen('leaderboard')}
           onLogout={async () => {
@@ -106,6 +128,9 @@ export default function App() {
             setScreen('account');
           }}
         />
+      )}
+      {screen === 'crossnumber' && (
+        <CrossNumberScreen onBack={() => setScreen('menu')} />
       )}
       {screen === 'playing' && <PlayScreen onGameOver={handleGameOver} />}
       {screen === 'gameover' && (
@@ -121,8 +146,8 @@ export default function App() {
       )}
       {screen === 'account' && (
         <AccountScreen
-          onAuthed={() => setScreen('home')}
-          onGuest={() => setScreen('home')}
+          onAuthed={() => setScreen('menu')}
+          onGuest={() => setScreen('menu')}
         />
       )}
       {screen === 'leaderboard' && (
@@ -136,21 +161,101 @@ export default function App() {
 
 // ---------------------------------------------------------------------------
 
+function GameMenuScreen({
+  username,
+  onNumberRules,
+  onCrossNumber,
+  onLogout,
+}: {
+  username: string | null;
+  onNumberRules: () => void;
+  onCrossNumber: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <View style={styles.menuRoot}>
+      <Image
+        source={require('./assets/koloso-logo.png')}
+        style={styles.menuLogo}
+        resizeMode="contain"
+      />
+      <Text style={styles.menuHeading}>Choose a game</Text>
+
+      <View style={styles.tileGrid}>
+        <Pressable
+          style={({ pressed }) => [styles.tile, styles.tileRules, pressed && styles.pressed]}
+          onPress={onNumberRules}
+        >
+          <NumberRulesIcon />
+          <Text style={[styles.tileName, { color: COLORS.accentText }]}>Number{'\n'}Rules</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.tile, styles.tileCross, pressed && styles.pressed]}
+          onPress={onCrossNumber}
+        >
+          <CrossNumberIcon />
+          <Text style={[styles.tileName, { color: '#FFFFFF' }]}>Cross{'\n'}Number</Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.menuHint}>More games coming soon.</Text>
+
+      {username && (
+        <View style={styles.authRow}>
+          <Text style={styles.authText}>Signed in as {username}</Text>
+          <Pressable onPress={onLogout} hitSlop={8}>
+            <Text style={styles.authLink}>Log out</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// A simple "123" chip for the Number Rules tile.
+function NumberRulesIcon() {
+  return (
+    <View style={styles.iconRules}>
+      <Text style={styles.iconRulesText}>123</Text>
+    </View>
+  );
+}
+
+// A mini 3×3 crossword grid (two black cells) for the Cross Number tile.
+function CrossNumberIcon() {
+  const black = new Set([2, 6]);
+  return (
+    <View style={styles.iconGrid}>
+      {Array.from({ length: 9 }).map((_, i) => (
+        <View key={i} style={[styles.iconCell, black.has(i) && styles.iconCellBlack]} />
+      ))}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
 function HomeScreen({
   username,
   highScore,
+  onBack,
   onPlay,
   onLeaderboard,
   onLogout,
 }: {
   username: string | null;
   highScore: number;
+  onBack: () => void;
   onPlay: () => void;
   onLeaderboard: () => void;
   onLogout: () => void;
 }) {
   return (
     <View style={styles.centered}>
+      <Pressable onPress={onBack} hitSlop={12} style={styles.homeBack}>
+        <Text style={styles.homeBackText}>‹ Games</Text>
+      </Pressable>
       <Image
         source={require('./assets/koloso-logo.png')}
         style={styles.logo}
@@ -467,6 +572,53 @@ const styles = StyleSheet.create({
   },
   container: { flex: 1, backgroundColor: COLORS.bg },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+
+  // Game menu (game picker)
+  menuRoot: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  menuLogo: { width: 150, height: 63, marginBottom: 20 },
+  menuHeading: { fontSize: 26, fontWeight: '800', color: COLORS.text, marginBottom: 22 },
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16, width: '100%', maxWidth: 360 },
+  tile: {
+    aspectRatio: 1,
+    flexBasis: '44%',
+    flexGrow: 0,
+    borderRadius: 22,
+    padding: 16,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  tileRules: { backgroundColor: COLORS.accent },
+  tileCross: { backgroundColor: COLORS.indigo },
+  tileName: { fontSize: 22, fontWeight: '900', lineHeight: 26 },
+  menuHint: { color: COLORS.textMuted, fontSize: 14, marginTop: 24 },
+
+  iconRules: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(32,48,32,0.14)',
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  iconRulesText: { color: COLORS.accentText, fontSize: 30, fontWeight: '900', letterSpacing: 1 },
+  iconGrid: {
+    alignSelf: 'flex-start',
+    width: 54,
+    height: 54,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    borderRadius: 6,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  iconCell: { width: '33.33%', height: '33.33%', borderWidth: 1, borderColor: 'rgba(255,255,255,0.85)', backgroundColor: '#FFFFFF' },
+  iconCellBlack: { backgroundColor: COLORS.ink },
+
+  homeBack: { position: 'absolute', top: 16, left: 16, padding: 6 },
+  homeBackText: { color: COLORS.accent, fontSize: 16, fontWeight: '800' },
 
   logo: { width: 150, height: 63, marginBottom: 18 },
   title: { fontSize: 34, fontWeight: '800', color: COLORS.accent, textAlign: 'center' },
