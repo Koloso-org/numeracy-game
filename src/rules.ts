@@ -476,6 +476,16 @@ const FACTORIES: Factory[] = [
     },
   },
   {
+    // Composite = a whole number > 1 that is not prime. Every number the game
+    // shows is ≥ 10, so "composite" is exactly "not prime" here.
+    type: 'composite',
+    make: (n, want) => {
+      const composite = n > 1 && !isPrime(n);
+      if (composite !== want) return null;
+      return { label: 'A composite number', holds: want };
+    },
+  },
+  {
     type: 'cube',
     make: (n, want) => {
       if (isPerfectCube(n) !== want) return null;
