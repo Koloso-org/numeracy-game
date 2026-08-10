@@ -542,27 +542,49 @@ const FACTORIES: Factory[] = [
 
 // ----- Round generation ------------------------------------------------------
 
+// Some rules are logical opposites — showing both in one round gives the
+// answer away (exactly one is always true). At most one label per group runs.
+function conflictGroup(label: string): string | null {
+  if (label === 'A prime number' || label === 'A composite number') return 'primality';
+  if (label === 'An even number' || label === 'An odd number') return 'parity';
+  if (label === 'A 2-digit number' || label === 'A 3-digit number') return 'ndigits';
+  return null;
+}
+
 function buildOne(
   n: number,
   want: boolean,
   usedTypes: Set<string>,
   usedLabels: Set<string>,
+  usedGroups: Set<string>,
+  avoidTypes: Set<string>,
 ): { label: string; holds: boolean } {
   const order = shuffle(FACTORIES);
-  // First choice: a rule type we haven't used yet this round.
-  for (const f of order) {
-    if (usedTypes.has(f.type)) continue;
-    const r = f.make(n, want);
-    if (r && !usedLabels.has(r.label)) {
+  // Try every factory that passes `accept`, honouring label and opposite-pair
+  // constraints; the first that yields a fresh, usable rule wins.
+  const attempt = (accept: (f: Factory) => boolean) => {
+    for (const f of order) {
+      if (!accept(f)) continue;
+      const r = f.make(n, want);
+      if (!r || usedLabels.has(r.label)) continue;
+      const group = conflictGroup(r.label);
+      if (group && usedGroups.has(group)) continue;
       usedTypes.add(f.type);
+      if (group) usedGroups.add(group);
       return r;
     }
-  }
-  // Second choice: allow reusing a type (different parameters).
-  for (const f of order) {
-    const r = f.make(n, want);
-    if (r && !usedLabels.has(r.label)) return r;
-  }
+    return null;
+  };
+
+  // 1) A type not used this round AND not shown in recent rounds (rotation).
+  // 2) Any type not yet used this round.
+  // 3) Allow reusing a type with different parameters.
+  const r =
+    attempt((f) => !usedTypes.has(f.type) && !avoidTypes.has(f.type)) ??
+    attempt((f) => !usedTypes.has(f.type)) ??
+    attempt(() => true);
+  if (r) return r;
+
   // Guaranteed fallback: "Greater than X" can always be made true or false.
   for (let off = 1; off < 60; off += 1) {
     const x = want ? n - off : n + off;
@@ -572,10 +594,23 @@ function buildOne(
   return { label: `Greater than ${want ? 0 : 999}`, holds: want };
 }
 
+// Rotation memory across rounds: types shown recently are avoided next time,
+// and the true-rule count never repeats two rounds running.
+const RECENT_WINDOW = 8;
+let recentTypes: string[] = [];
+let lastTrueCount = 0;
+
+function pickTrueCount(): number {
+  const pool = [1, 1, 2, 2, 2, 3, 3, 4];
+  const fresh = pool.filter((c) => c !== lastTrueCount);
+  return pick(fresh.length > 0 ? fresh : pool);
+}
+
 export function generateRound(): Round {
   const n = randInt(10, 999);
-  // Weighted number of true rules — usually 1–3, occasionally all 4.
-  const trueCount = pick([1, 1, 2, 2, 2, 3, 3, 4]);
+  const trueCount = pickTrueCount();
+  lastTrueCount = trueCount;
+
   const wants = shuffle([
     ...Array(trueCount).fill(true),
     ...Array(4 - trueCount).fill(false),
@@ -583,11 +618,17 @@ export function generateRound(): Round {
 
   const usedTypes = new Set<string>();
   const usedLabels = new Set<string>();
+  const usedGroups = new Set<string>();
+  const avoidTypes = new Set(recentTypes);
+
   const rules: Rule[] = wants.map((want, i) => {
-    const built = buildOne(n, want, usedTypes, usedLabels);
+    const built = buildOne(n, want, usedTypes, usedLabels, usedGroups, avoidTypes);
     usedLabels.add(built.label);
     return { id: `r${i}`, label: built.label, holds: built.holds };
   });
+
+  // Remember the types shown so the next rounds favour different ones.
+  recentTypes = [...recentTypes, ...usedTypes].slice(-RECENT_WINDOW);
 
   // Shuffle display order and re-key ids so position doesn't leak the answer.
   return {
