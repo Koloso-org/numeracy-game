@@ -270,6 +270,77 @@ const FACTORIES: Factory[] = [
       return { label: `A factor of ${y}`, holds: false };
     },
   },
+  {
+    // Percentage comparison: "The same as / More than / Less than X% of Y".
+    // X% of Y is always a whole number here (Y is a multiple of 20).
+    type: 'percentof',
+    make: (n, want) => {
+      const NICE_X = [5, 10, 20, 25, 50, 75];
+      const comp = pick(['same', 'more', 'less']);
+      if (comp === 'same') {
+        if (want) {
+          // Need X% of Y = n exactly, with Y a sensible whole number.
+          const opts = NICE_X.filter((x) => (100 * n) % x === 0 && (100 * n) / x <= 500);
+          if (opts.length === 0) return null;
+          const x = pick(opts);
+          return { label: `The same as ${x}% of ${(100 * n) / x}`, holds: true };
+        }
+        const y = 20 * randInt(1, 20);
+        const x = pick(NICE_X);
+        if ((x * y) / 100 === n) return null;
+        return { label: `The same as ${x}% of ${y}`, holds: false };
+      }
+      for (let i = 0; i < 40; i += 1) {
+        const y = 20 * randInt(1, 20);
+        const x = pick(NICE_X);
+        const target = (x * y) / 100;
+        const holds = comp === 'more' ? n > target : n < target;
+        if (holds === want) {
+          const word = comp === 'more' ? 'More than' : 'Less than';
+          return { label: `${word} ${x}% of ${y}`, holds: want };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    // Fraction comparison: "Equal to / More than / Less than A/B of Z".
+    // A/B of Z is always a whole number here (Z is a multiple of B).
+    type: 'fractionof',
+    make: (n, want) => {
+      const FRACS: [number, number][] = [
+        [1, 2], [1, 3], [2, 3], [1, 4], [3, 4],
+        [1, 5], [2, 5], [3, 5], [4, 5], [1, 10], [3, 10],
+      ];
+      const comp = pick(['equal', 'more', 'less']);
+      if (comp === 'equal') {
+        if (want) {
+          // Need A/B of Z = n exactly → Z = n*B/A, a sensible whole number.
+          const opts = FRACS.filter(
+            ([a, b]) => (n * b) % a === 0 && (n * b) / a <= 600 && (n * b) / a >= b,
+          );
+          if (opts.length === 0) return null;
+          const [a, b] = pick(opts);
+          return { label: `Equal to ${a}/${b} of ${(n * b) / a}`, holds: true };
+        }
+        const [a, b] = pick(FRACS);
+        const z = b * randInt(2, 30);
+        if ((a * z) / b === n) return null;
+        return { label: `Equal to ${a}/${b} of ${z}`, holds: false };
+      }
+      for (let i = 0; i < 40; i += 1) {
+        const [a, b] = pick(FRACS);
+        const z = b * randInt(2, 30);
+        const target = (a * z) / b;
+        const holds = comp === 'more' ? n > target : n < target;
+        if (holds === want) {
+          const word = comp === 'more' ? 'More than' : 'Less than';
+          return { label: `${word} ${a}/${b} of ${z}`, holds: want };
+        }
+      }
+      return null;
+    },
+  },
 ];
 
 // ----- Round generation ------------------------------------------------------
