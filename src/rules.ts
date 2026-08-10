@@ -88,6 +88,39 @@ export function digitSum(n: number): number {
     .reduce((s, d) => s + Number(d), 0);
 }
 
+export function isPrime(n: number): boolean {
+  if (n < 2) return false;
+  if (n % 2 === 0) return n === 2;
+  for (let d = 3; d * d <= n; d += 2) {
+    if (n % d === 0) return false;
+  }
+  return true;
+}
+
+export function isPerfectCube(n: number): boolean {
+  const r = Math.round(Math.cbrt(n));
+  return r * r * r === n;
+}
+
+const ROMAN_MAP: [number, string][] = [
+  [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'],
+  [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'],
+  [5, 'V'], [4, 'IV'], [1, 'I'],
+];
+
+/** Whole number (1–3999) to its Roman numeral, e.g. 147 -> "CXLVII". */
+export function toRoman(num: number): string {
+  let n = num;
+  let out = '';
+  for (const [v, s] of ROMAN_MAP) {
+    while (n >= v) {
+      out += s;
+      n -= v;
+    }
+  }
+  return out;
+}
+
 // Characters used in labels (kept as constants so the test verifier can match).
 const TIMES = '×'; // U+00D7
 const MINUS = '−'; // U+2212
@@ -408,6 +441,91 @@ const FACTORIES: Factory[] = [
         }
       }
       return null;
+    },
+  },
+  {
+    // "Rounds to X to the nearest 10." True X is the actual rounding; a false
+    // one is a different, nearby multiple of 10. (Halves round up, as taught.)
+    type: 'roundten',
+    make: (n, want) => {
+      const correct = Math.round(n / 10) * 10;
+      if (want) return { label: `Rounds to ${correct} to the nearest 10`, holds: true };
+      const x = correct + pick([-20, -10, 10, 20]);
+      if (x < 10 || x === correct) return null;
+      return { label: `Rounds to ${x} to the nearest 10`, holds: false };
+    },
+  },
+  {
+    // "Rounds to X to the nearest 100." Skipped for small numbers that would
+    // round to 0. (Halves round up, e.g. 250 -> 300.)
+    type: 'roundhundred',
+    make: (n, want) => {
+      if (n < 50) return null;
+      const correct = Math.round(n / 100) * 100;
+      if (want) return { label: `Rounds to ${correct} to the nearest 100`, holds: true };
+      const x = correct + pick([-200, -100, 100, 200]);
+      if (x < 100 || x === correct) return null;
+      return { label: `Rounds to ${x} to the nearest 100`, holds: false };
+    },
+  },
+  {
+    type: 'prime',
+    make: (n, want) => {
+      if (isPrime(n) !== want) return null;
+      return { label: 'A prime number', holds: want };
+    },
+  },
+  {
+    type: 'cube',
+    make: (n, want) => {
+      if (isPerfectCube(n) !== want) return null;
+      return { label: 'A cube number', holds: want };
+    },
+  },
+  {
+    // Place value: "The tens digit is X" / "The hundreds digit is X".
+    type: 'digitvalue',
+    make: (n, want) => {
+      const tens = Math.floor(n / 10) % 10;
+      const hundreds = Math.floor(n / 100) % 10;
+      const place = pick(n >= 100 ? ['tens', 'hundreds'] : ['tens']);
+      const actual = place === 'tens' ? tens : hundreds;
+      if (want) return { label: `The ${place} digit is ${actual}`, holds: true };
+      let d = randInt(0, 9);
+      while (d === actual) d = randInt(0, 9);
+      return { label: `The ${place} digit is ${d}`, holds: false };
+    },
+  },
+  {
+    // "Double X" (2·X = n) and "Half of Y" (Y ÷ 2 = n). Both stay whole numbers.
+    type: 'doublehalf',
+    make: (n, want) => {
+      if (pick(['double', 'half']) === 'half') {
+        if (want) return { label: `Half of ${2 * n}`, holds: true };
+        let m = n + pick([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5]);
+        if (m < 1) m = n + randInt(1, 5);
+        if (m === n) return null;
+        return { label: `Half of ${2 * m}`, holds: false };
+      }
+      if (want) {
+        if (n % 2 !== 0) return null;
+        return { label: `Double ${n / 2}`, holds: true };
+      }
+      let k = Math.round(n / 2) + pick([-3, -2, -1, 1, 2, 3]);
+      if (k < 1) k = randInt(1, 20);
+      if (2 * k === n) return null;
+      return { label: `Double ${k}`, holds: false };
+    },
+  },
+  {
+    // "Equal to <Roman numeral>" — is n written in Roman numerals this way?
+    type: 'roman',
+    make: (n, want) => {
+      if (want) return { label: `Equal to ${toRoman(n)}`, holds: true };
+      let m = n + pick([-10, -3, -2, -1, 1, 2, 3, 10]);
+      if (m < 1) m = n + randInt(1, 5);
+      if (m === n) return null;
+      return { label: `Equal to ${toRoman(m)}`, holds: false };
     },
   },
 ];
