@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -182,21 +182,26 @@ function GameMenuScreen({
       <Text style={styles.menuHeading}>Choose a game</Text>
 
       <View style={styles.tileGrid}>
-        <Pressable
-          style={({ pressed }) => [styles.tile, styles.tileRules, pressed && styles.pressed]}
+        <GameTile
+          bg={COLORS.accent}
+          fg={COLORS.accentText}
+          subFg="rgba(32,48,32,0.6)"
+          blob="rgba(255,255,255,0.16)"
+          title={'Number\nRules'}
+          tagline="Tick what's true"
+          icon={<NumberRulesIcon />}
           onPress={onNumberRules}
-        >
-          <NumberRulesIcon />
-          <Text style={[styles.tileName, { color: COLORS.accentText }]}>Number{'\n'}Rules</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [styles.tile, styles.tileCross, pressed && styles.pressed]}
+        />
+        <GameTile
+          bg="#3E6FA0"
+          fg="#FFFFFF"
+          subFg="rgba(255,255,255,0.78)"
+          blob="rgba(255,255,255,0.10)"
+          title={'Cross\nNumber'}
+          tagline="A number crossword"
+          icon={<CrossNumberIcon />}
           onPress={onCrossNumber}
-        >
-          <CrossNumberIcon />
-          <Text style={[styles.tileName, { color: '#FFFFFF' }]}>Cross{'\n'}Number</Text>
-        </Pressable>
+        />
       </View>
 
       <Text style={styles.menuHint}>More games coming soon.</Text>
@@ -213,22 +218,71 @@ function GameMenuScreen({
   );
 }
 
-// A simple "123" chip for the Number Rules tile.
-function NumberRulesIcon() {
+function GameTile({
+  bg,
+  fg,
+  subFg,
+  blob,
+  title,
+  tagline,
+  icon,
+  onPress,
+}: {
+  bg: string;
+  fg: string;
+  subFg: string;
+  blob: string;
+  title: string;
+  tagline: string;
+  icon: ReactNode;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.iconRules}>
-      <Text style={styles.iconRulesText}>123</Text>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.tile, { backgroundColor: bg }, pressed && styles.tilePressed]}
+    >
+      <View style={[styles.tileBlob, { backgroundColor: blob }]} pointerEvents="none" />
+      <View style={styles.tileIconWrap}>{icon}</View>
+      <View>
+        <Text style={[styles.tileName, { color: fg }]}>{title}</Text>
+        <Text style={[styles.tileTag, { color: subFg }]}>{tagline}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+// Number Rules icon: a mini "true/false" checklist — the heart of the game.
+function NumberRulesIcon() {
+  const rows: [string, string, number][] = [
+    ['✓', COLORS.correct, 22],
+    ['✕', COLORS.wrong, 15],
+    ['✓', COLORS.correct, 27],
+  ];
+  return (
+    <View style={styles.nrCard}>
+      {rows.map(([mark, color, w], i) => (
+        <View key={i} style={styles.nrRow}>
+          <View style={[styles.nrBadge, { backgroundColor: color }]}>
+            <Text style={styles.nrBadgeTx}>{mark}</Text>
+          </View>
+          <View style={[styles.nrBar, { width: w }]} />
+        </View>
+      ))}
     </View>
   );
 }
 
-// A mini 3×3 crossword grid (two black cells) for the Cross Number tile.
+// Cross Number icon: a crisp mini crossword (diagonal black cells, clue numbers).
 function CrossNumberIcon() {
   const black = new Set([2, 6]);
+  const nums: Record<number, string> = { 0: '1', 1: '2', 4: '3' };
   return (
-    <View style={styles.iconGrid}>
+    <View style={styles.cnGrid}>
       {Array.from({ length: 9 }).map((_, i) => (
-        <View key={i} style={[styles.iconCell, black.has(i) && styles.iconCellBlack]} />
+        <View key={i} style={[styles.cnCell, black.has(i) && styles.cnCellBlack]}>
+          {nums[i] && !black.has(i) && <Text style={styles.cnCellNum}>{nums[i]}</Text>}
+        </View>
       ))}
     </View>
   );
@@ -582,40 +636,68 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     flexBasis: '44%',
     flexGrow: 0,
-    borderRadius: 22,
-    padding: 16,
+    borderRadius: 24,
+    padding: 15,
+    overflow: 'hidden',
     justifyContent: 'space-between',
     shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
-  tileRules: { backgroundColor: COLORS.accent },
-  tileCross: { backgroundColor: COLORS.indigo },
-  tileName: { fontSize: 22, fontWeight: '900', lineHeight: 26 },
+  tilePressed: { transform: [{ scale: 0.96 }], shadowOpacity: 0.18 },
+  tileBlob: {
+    position: 'absolute',
+    right: -30,
+    bottom: -30,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+  },
+  tileIconWrap: { alignSelf: 'flex-start' },
+  tileName: { fontSize: 19, fontWeight: '900', lineHeight: 22 },
+  tileTag: { fontSize: 12, fontWeight: '700', marginTop: 3 },
   menuHint: { color: COLORS.textMuted, fontSize: 14, marginTop: 24 },
 
-  iconRules: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(32,48,32,0.14)',
-    borderRadius: 12,
+  // Number Rules icon (mini true/false checklist)
+  nrCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.14,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
-  iconRulesText: { color: COLORS.accentText, fontSize: 30, fontWeight: '900', letterSpacing: 1 },
-  iconGrid: {
-    alignSelf: 'flex-start',
-    width: 54,
-    height: 54,
+  nrRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nrBadge: { width: 13, height: 13, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
+  nrBadgeTx: { color: '#FFFFFF', fontSize: 8, fontWeight: '900', lineHeight: 10 },
+  nrBar: { height: 4, borderRadius: 2, backgroundColor: 'rgba(32,48,32,0.22)' },
+
+  // Cross Number icon (mini crossword grid)
+  cnGrid: {
+    width: 48,
+    height: 48,
     flexDirection: 'row',
     flexWrap: 'wrap',
     borderRadius: 6,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: COLORS.ink,
+    borderWidth: 1.5,
+    borderColor: COLORS.ink,
   },
-  iconCell: { width: '33.33%', height: '33.33%', borderWidth: 1, borderColor: 'rgba(255,255,255,0.85)', backgroundColor: '#FFFFFF' },
-  iconCellBlack: { backgroundColor: COLORS.ink },
+  cnCell: {
+    width: '33.33%',
+    height: '33.33%',
+    borderWidth: 0.5,
+    borderColor: 'rgba(31,42,58,0.4)',
+    backgroundColor: '#FFFDF4',
+  },
+  cnCellBlack: { backgroundColor: COLORS.ink },
+  cnCellNum: { position: 'absolute', top: 0, left: 1.5, fontSize: 7, fontWeight: '800', color: 'rgba(31,42,58,0.7)' },
 
   homeBack: { position: 'absolute', top: 16, left: 16, padding: 6 },
   homeBackText: { color: COLORS.accent, fontSize: 16, fontWeight: '800' },
