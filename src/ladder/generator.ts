@@ -170,14 +170,38 @@ export function makeStarter(level: LadderLevel, rand: Rand): Rung {
   return { label: `${a} × ${b}`, result: a * b };
 }
 
-/** The next rung for a running value. `prevLabel` avoids an immediate repeat. */
-export function nextStep(level: LadderLevel, value: number, rand: Rand, prevLabel = ''): Rung {
+/** The next rung for a running value.
+ *  - `prevLabel` avoids repeating the previous operation verbatim.
+ *  - `avoid` is the value from *before* the current one; rejecting a step that
+ *    returns to it blocks inverse operations (Double↔Halve, ×n↔÷n, Add k↔
+ *    Subtract k, ×1.5↔⅔, …) that would undo the previous rung.
+ */
+export function nextStep(
+  level: LadderLevel,
+  value: number,
+  rand: Rand,
+  prevLabel = '',
+  avoid?: number,
+): Rung {
   const cfg = CONFIG[level];
+  const ok = (c: Rung | null): c is Rung =>
+    !!c && c.label !== prevLabel && c.result !== value && c.result !== avoid;
   for (const op of shuffle(rand, OPS)) {
     const cand = op(value, cfg, rand);
-    if (cand && cand.label !== prevLabel && cand.result !== value) return cand;
+    if (ok(cand)) return cand;
   }
-  // Fallback that always works and keeps the value in bounds.
-  if (cfg.max - value >= 1) return { label: 'Add 1', result: value + 1 };
-  return { label: 'Subtract 1', result: value - 1 };
+  // Fallback: a small add/subtract that keeps the value in bounds and still
+  // isn't a repeat, a no-op, or an inverse.
+  for (let d = 1; d <= 8; d += 1) {
+    if (value + d <= cfg.max && ok({ label: `Add ${d}`, result: value + d })) {
+      return { label: `Add ${d}`, result: value + d };
+    }
+    if (value - d >= cfg.min && ok({ label: `Subtract ${d}`, result: value - d })) {
+      return { label: `Subtract ${d}`, result: value - d };
+    }
+  }
+  // Absolute last resort (effectively unreachable within the configured bounds).
+  return cfg.max - value >= 1
+    ? { label: 'Add 1', result: value + 1 }
+    : { label: 'Subtract 1', result: value - 1 };
 }

@@ -237,7 +237,10 @@ function LadderGame({
       setFlash('ok');
       setTimeout(() => {
         const prevValue = current.result;
-        const next = nextStep(level, prevValue, randRef.current, current.label);
+        // `runningValue` is the total before this answer; forbid the next step
+        // from returning to it, so we never chain an operation and its inverse.
+        const avoid = runningValue ?? undefined;
+        const next = nextStep(level, prevValue, randRef.current, current.label, avoid);
         setRunningValue(prevValue);
         setCurrent(next);
         setEntry('');
