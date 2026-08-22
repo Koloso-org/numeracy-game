@@ -18,6 +18,10 @@ import {
 
 const TICK_MS = 100;
 const LADDER_ACCENT = '#227C72'; // teal — the game's signature colour
+const CLEAR_RED = '#A5321C';
+const KEY_ALT = '#7A2214';
+const SKIP_BLUE = '#4E7FB0';
+const SKIP_EVERY = 10; // earn one free skip per this many rungs climbed
 
 const LEVEL_LABEL: Record<LadderLevel, string> = { beginner: 'Beginner', expert: 'Expert' };
 const LEVEL_SUB: Record<LadderLevel, string> = {
@@ -48,7 +52,7 @@ function LevelSelect({
       <Text style={styles.bigTitle}>Number Ladder</Text>
       <Text style={styles.selectSub}>
         Keep the chain going: answer each step to climb. One wrong answer — or the clock — ends
-        your run. The higher you go, the less time you get.
+        your run. The higher you go, the less time you get. Every 10 rungs earns a free skip.
       </Text>
 
       {(['beginner', 'expert'] as LadderLevel[]).map((lvl) => (
@@ -118,6 +122,7 @@ function LadderGame({ level, onQuit }: { level: LadderLevel; onQuit: () => void 
   const [runningValue, setRunningValue] = useState<number | null>(null); // total feeding this rung
   const [entry, setEntry] = useState('');
   const [flash, setFlash] = useState<null | 'ok' | 'bad'>(null);
+  const [skipsUsed, setSkipsUsed] = useState(0);
   const [limit, setLimit] = useState(stepSeconds(0));
   const [timeLeft, setTimeLeft] = useState(stepSeconds(0));
 
@@ -196,11 +201,24 @@ function LadderGame({ level, onQuit }: { level: LadderLevel; onQuit: () => void 
     }
   };
 
+  const skipsAvailable = Math.floor(climbed / SKIP_EVERY) - skipsUsed;
+
+  const useSkip = () => {
+    if (phase !== 'play' || flash || skipsAvailable <= 0 || runningValue === null) return;
+    setSkipsUsed((n) => n + 1);
+    const next = nextStep(level, runningValue, randRef.current, current.label);
+    setCurrent(next);
+    setEntry('');
+    resetTimer(climbed);
+  };
+
   const onKey = (k: string) => {
     if (phase !== 'play' || flash) return;
     if (k === 'DEL') setEntry((e) => e.slice(0, -1));
+    else if (k === 'CLEAR') setEntry('');
     else if (k === 'ENTER') submit();
     else if (/[0-9]/.test(k)) setEntry((e) => (e.length < 7 ? e + k : e));
+    // '.' and '+/−' are inert: ladder answers are always whole and positive.
   };
 
   if (phase === 'count') {
@@ -272,6 +290,21 @@ function LadderGame({ level, onQuit }: { level: LadderLevel; onQuit: () => void 
             <View style={styles.caret} />
           </View>
           <Keypad onKey={onKey} />
+          <Pressable
+            testID="ladder-skip"
+            onPress={useSkip}
+            disabled={skipsAvailable <= 0}
+            style={[styles.skip, skipsAvailable <= 0 && styles.skipOff]}
+          >
+            <Text style={[styles.skipText, skipsAvailable <= 0 && styles.skipTextOff]}>
+              {skipsAvailable > 0 ? `SKIP${skipsAvailable > 1 ? ` ×${skipsAvailable}` : ''}` : 'SKIP'}
+            </Text>
+            {skipsAvailable <= 0 && (
+              <Text style={styles.skipHint}>
+                {SKIP_EVERY - (climbed % SKIP_EVERY)} more to unlock
+              </Text>
+            )}
+          </Pressable>
         </View>
       </View>
 
@@ -284,11 +317,12 @@ function LadderGame({ level, onQuit }: { level: LadderLevel; onQuit: () => void 
 
 // ---------------------------------------------------------------------------
 
-const KEYS: string[][] = [
-  ['7', '8', '9'],
-  ['4', '5', '6'],
-  ['1', '2', '3'],
-  ['DEL', '0', 'ENTER'],
+// Same layout as the Koloso Challenge keypad.
+const KEYS: [string, string, 'num' | 'clear' | 'alt' | 'enter'][][] = [
+  [['7', '7', 'num'], ['8', '8', 'num'], ['9', '9', 'num'], ['CLEAR', 'CLEAR', 'clear']],
+  [['4', '4', 'num'], ['5', '5', 'num'], ['6', '6', 'num'], ['⌫', 'DEL', 'alt']],
+  [['1', '1', 'num'], ['2', '2', 'num'], ['3', '3', 'num'], ['+/−', 'SIGN', 'alt']],
+  [['0', '0', 'num'], ['.', '.', 'num'], ['ENTER', 'ENTER', 'enter']],
 ];
 
 function Keypad({ onKey }: { onKey: (k: string) => void }) {
@@ -296,26 +330,26 @@ function Keypad({ onKey }: { onKey: (k: string) => void }) {
     <View style={styles.keypad}>
       {KEYS.map((row, ri) => (
         <View key={ri} style={styles.kpRow}>
-          {row.map((k) => (
+          {row.map(([label, val, kind]) => (
             <Pressable
-              key={k}
-              testID={`lk-${k}`}
-              onPress={() => onKey(k)}
+              key={val}
+              testID={`lk-${val}`}
+              onPress={() => onKey(val)}
               style={({ pressed }) => [
                 styles.key,
-                k === 'ENTER' && styles.keyEnter,
-                k === 'DEL' && styles.keyDel,
+                kind === 'enter' && styles.keyEnter,
                 pressed && styles.keyPressed,
               ]}
             >
               <Text
                 style={[
                   styles.keyText,
-                  k === 'ENTER' && styles.keyEnterText,
-                  k === 'DEL' && styles.keyDelText,
+                  kind === 'clear' && styles.keyClear,
+                  kind === 'alt' && styles.keyAlt,
+                  kind === 'enter' && styles.keyEnterText,
                 ]}
               >
-                {k === 'DEL' ? '⌫' : k}
+                {label}
               </Text>
             </Pressable>
           ))}
@@ -466,21 +500,21 @@ const styles = StyleSheet.create({
   answerBoxBad: { borderColor: COLORS.wrong },
   answerText: { color: COLORS.ink, fontSize: 26, fontWeight: '800' },
   caret: { width: 2, height: 26, backgroundColor: COLORS.inkMuted, marginLeft: 2 },
-  keypad: { gap: 8 },
-  kpRow: { height: 56, flexDirection: 'row', gap: 8 },
-  key: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  keypad: { marginTop: 10, gap: 8 },
+  kpRow: { height: 54, minHeight: 40, flexShrink: 1, flexDirection: 'row', gap: 8 },
+  key: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   keyPressed: { opacity: 0.7 },
   keyText: { color: COLORS.ink, fontSize: 24, fontWeight: '800' },
+  keyClear: { color: CLEAR_RED, fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
+  keyAlt: { color: KEY_ALT, fontSize: 20, fontWeight: '900' },
   keyEnter: { flex: 2, backgroundColor: COLORS.accent },
-  keyEnterText: { color: COLORS.accentText, fontSize: 18, fontWeight: '900' },
-  keyDel: { backgroundColor: '#F2E4DE' },
-  keyDelText: { color: '#A5321C' },
+  keyEnterText: { color: COLORS.accentText, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+
+  skip: { backgroundColor: SKIP_BLUE, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 14 },
+  skipOff: { backgroundColor: 'rgba(255,255,255,0.14)' },
+  skipText: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', letterSpacing: 2 },
+  skipTextOff: { color: 'rgba(255,255,255,0.45)' },
+  skipHint: { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginTop: 2 },
 
   quitRow: { alignSelf: 'center', paddingVertical: 8 },
   quitText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '700' },
