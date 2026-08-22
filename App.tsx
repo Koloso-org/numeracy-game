@@ -21,6 +21,9 @@ import { LeaderboardEntry, getMyRank, submitGame } from './src/leaderboard';
 import AccountScreen from './src/screens/AccountScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import CrossNumberScreen from './src/screens/CrossNumberScreen';
+import ChallengeScreen from './src/screens/ChallengeScreen';
+import ChallengeLeaderboardScreen from './src/screens/ChallengeLeaderboardScreen';
+import { Level } from './src/challenge/questions';
 
 type Screen =
   | 'boot'
@@ -30,7 +33,9 @@ type Screen =
   | 'gameover'
   | 'account'
   | 'leaderboard'
-  | 'crossnumber';
+  | 'crossnumber'
+  | 'challenge'
+  | 'challengeLeaderboard';
 const TICK_MS = 100;
 
 interface GameResult {
@@ -43,6 +48,7 @@ export default function App() {
   const [highScore, setHighScore] = useState(0);
   const [lastResult, setLastResult] = useState<GameResult>({ plus: 0, minus: 0 });
   const [username, setUsername] = useState<string | null>(null);
+  const [challengeLevel, setChallengeLevel] = useState<Level>('beginner');
 
   // Keep the game inside a phone-width "device" on wide screens (desktop/laptop),
   // centred on a cream surround — matching the Koloso device-frame layout.
@@ -108,6 +114,7 @@ export default function App() {
           username={username}
           onNumberRules={() => setScreen('home')}
           onCrossNumber={() => setScreen('crossnumber')}
+          onChallenge={() => setScreen('challenge')}
           onLogout={async () => {
             await signOut();
             setUsername(null);
@@ -131,6 +138,23 @@ export default function App() {
       )}
       {screen === 'crossnumber' && (
         <CrossNumberScreen onBack={() => setScreen('menu')} />
+      )}
+      {screen === 'challenge' && (
+        <ChallengeScreen
+          username={username}
+          onBack={() => setScreen('menu')}
+          onOpenLeaderboard={(lvl) => {
+            setChallengeLevel(lvl);
+            setScreen('challengeLeaderboard');
+          }}
+        />
+      )}
+      {screen === 'challengeLeaderboard' && (
+        <ChallengeLeaderboardScreen
+          level={challengeLevel}
+          username={username}
+          onBack={() => setScreen('challenge')}
+        />
       )}
       {screen === 'playing' && <PlayScreen onGameOver={handleGameOver} />}
       {screen === 'gameover' && (
@@ -165,11 +189,13 @@ function GameMenuScreen({
   username,
   onNumberRules,
   onCrossNumber,
+  onChallenge,
   onLogout,
 }: {
   username: string | null;
   onNumberRules: () => void;
   onCrossNumber: () => void;
+  onChallenge: () => void;
   onLogout: () => void;
 }) {
   return (
@@ -201,6 +227,16 @@ function GameMenuScreen({
           tagline="A number crossword"
           icon={<CrossNumberIcon />}
           onPress={onCrossNumber}
+        />
+        <GameTile
+          bg="#C05A2B"
+          fg="#FFFFFF"
+          subFg="rgba(255,255,255,0.8)"
+          blob="rgba(255,255,255,0.12)"
+          title={'Koloso\nChallenge'}
+          tagline="Race the clock"
+          icon={<ChallengeIcon />}
+          onPress={onChallenge}
         />
       </View>
 
@@ -269,6 +305,18 @@ function NumberRulesIcon() {
           <View style={[styles.nrBar, { width: w }]} />
         </View>
       ))}
+    </View>
+  );
+}
+
+// Koloso Challenge icon: a stopwatch reading 2:00 (the timed round).
+function ChallengeIcon() {
+  return (
+    <View style={styles.stopWrap}>
+      <View style={styles.stopNub} />
+      <View style={styles.stopFace}>
+        <Text style={styles.stopTime}>2:00</Text>
+      </View>
     </View>
   );
 }
@@ -698,6 +746,21 @@ const styles = StyleSheet.create({
   },
   cnCellBlack: { backgroundColor: COLORS.ink },
   cnCellNum: { position: 'absolute', top: 0, left: 1.5, fontSize: 7, fontWeight: '800', color: 'rgba(31,42,58,0.7)' },
+
+  // Koloso Challenge icon (stopwatch)
+  stopWrap: { alignItems: 'center' },
+  stopNub: { width: 14, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF', marginBottom: -1, zIndex: 1 },
+  stopFace: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopTime: { color: '#C05A2B', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
 
   homeBack: { position: 'absolute', top: 16, left: 16, padding: 6 },
   homeBackText: { color: COLORS.accent, fontSize: 16, fontWeight: '800' },
