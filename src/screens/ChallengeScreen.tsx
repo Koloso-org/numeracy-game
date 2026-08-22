@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../theme';
-import { Level, Question, isCorrect, pickQuestions } from '../challenge/questions';
+import { Level, Question, isCorrect, loadBank, pickQuestions } from '../challenge/questions';
 import ChallengeVisual from '../challenge/ChallengeVisual';
 import { supabase } from '../supabase';
 import { ChallengeRank, getMyChallengeRank, submitChallenge } from '../challengeLeaderboard';
@@ -33,17 +33,83 @@ export default function ChallengeScreen({
   onOpenLeaderboard: (level: Level) => void;
 }) {
   const [level, setLevel] = useState<Level | null>(null);
+  const [questions, setQuestions] = useState<Question[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!level) return;
+    let cancelled = false;
+    setQuestions(null);
+    setLoadError(null);
+    loadBank(level)
+      .then((all) => {
+        if (!cancelled) setQuestions(pickQuestions(all, QUESTION_COUNT, Math.random));
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Could not load questions');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [level]);
+
+  const backToLevels = () => {
+    setLevel(null);
+    setQuestions(null);
+    setLoadError(null);
+  };
+
   if (!level) {
     return <LevelSelect onBack={onBack} onPick={setLevel} onOpenLeaderboard={onOpenLeaderboard} />;
+  }
+  if (loadError) {
+    return <LoadNotice message={loadError} isError onBack={backToLevels} />;
+  }
+  if (!questions) {
+    return <LoadNotice message="Loading questions…" onBack={backToLevels} />;
   }
   return (
     <ChallengeGame
       key={level}
       level={level}
+      questions={questions}
       username={username}
-      onQuit={() => setLevel(null)}
+      onQuit={backToLevels}
       onOpenLeaderboard={onOpenLeaderboard}
     />
+  );
+}
+
+function LoadNotice({
+  message,
+  isError,
+  onBack,
+}: {
+  message: string;
+  isError?: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <View style={styles.selectRoot}>
+      <Pressable onPress={onBack} hitSlop={12} style={styles.back}>
+        <Text style={styles.backText}>‹ Levels</Text>
+      </Pressable>
+      <View style={styles.loadCenter}>
+        {isError ? (
+          <Text style={styles.loadError}>{message}</Text>
+        ) : (
+          <>
+            <ActivityIndicator size="large" color={COLORS.accent} />
+            <Text style={styles.loadText}>{message}</Text>
+          </>
+        )}
+        {isError ? (
+          <Pressable onPress={onBack} style={({ pressed }) => [styles.retryBtn, pressed && styles.pressed]}>
+            <Text style={styles.retryText}>Back</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
@@ -89,16 +155,17 @@ function LevelSelect({
 
 function ChallengeGame({
   level,
+  questions,
   username,
   onQuit,
   onOpenLeaderboard,
 }: {
   level: Level;
+  questions: Question[];
   username: string | null;
   onQuit: () => void;
   onOpenLeaderboard: (level: Level) => void;
 }) {
-  const [questions] = useState<Question[]>(() => pickQuestions(level, QUESTION_COUNT, Math.random));
   const [index, setIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [entry, setEntry] = useState('');
@@ -381,6 +448,11 @@ const styles = StyleSheet.create({
 
   // Level select
   selectRoot: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  loadCenter: { alignItems: 'center', justifyContent: 'center', gap: 16 },
+  loadText: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
+  loadError: { color: COLORS.text, fontSize: 17, fontWeight: '700', textAlign: 'center', maxWidth: 300 },
+  retryBtn: { backgroundColor: COLORS.accent, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 28 },
+  retryText: { color: COLORS.accentText, fontSize: 16, fontWeight: '800' },
   bigTitle: { color: COLORS.accent, fontSize: 30, fontWeight: '900', textAlign: 'center' },
   selectSub: { color: COLORS.textMuted, fontSize: 15, textAlign: 'center', marginTop: 8, marginBottom: 22, paddingHorizontal: 10 },
   levelCard: { width: '100%', maxWidth: 340, marginBottom: 16, alignItems: 'center' },
