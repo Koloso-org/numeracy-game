@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { DimensionValue, Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../theme';
 import {
   LadderLevel,
@@ -123,6 +123,7 @@ function LadderGame({ level, onQuit }: { level: LadderLevel; onQuit: () => void 
   const [entry, setEntry] = useState('');
   const [flash, setFlash] = useState<null | 'ok' | 'bad'>(null);
   const [skipsUsed, setSkipsUsed] = useState(0);
+  const [pbSteps] = useState<number | null>(() => readBest(level)?.steps ?? null);
   const [limit, setLimit] = useState(stepSeconds(0));
   const [timeLeft, setTimeLeft] = useState(stepSeconds(0));
 
@@ -256,6 +257,7 @@ function LadderGame({ level, onQuit }: { level: LadderLevel; onQuit: () => void 
         <View style={[styles.trackFill, { width: `${Math.max(0, frac) * 100}%`, backgroundColor: ringColor }]} />
       </View>
 
+      <View style={styles.body}>
       <View style={styles.middle}>
         <View
           style={[
@@ -307,10 +309,56 @@ function LadderGame({ level, onQuit }: { level: LadderLevel; onQuit: () => void 
           </Pressable>
         </View>
       </View>
+        <ScoreBar value={climbed} pb={pbSteps} top={null} />
+      </View>
 
       <Pressable onPress={endRun} hitSlop={8} style={styles.quitRow}>
         <Text style={styles.quitText}>End run</Text>
       </Pressable>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+// Vertical score bar: a gold fill that rises with the rungs climbed, marked
+// with the player's personal best (PB) and — once an online leaderboard exists
+// — the current #1 (gold-medal) position, both as targets to beat.
+function ScoreBar({ value, pb, top }: { value: number; pb: number | null; top: number | null }) {
+  const highest = Math.max(value, pb ?? 0, top ?? 0);
+  const max = Math.max(20, Math.ceil((highest + 4) / 10) * 10);
+  const pct = (v: number): DimensionValue => `${Math.min(1, v / max) * 100}%`;
+  const ticks: number[] = [];
+  for (let t = 0; t <= max; t += 10) ticks.push(t);
+
+  return (
+    <View style={styles.barWrap}>
+      <View style={styles.barTrack}>
+        <View style={[styles.barFill, { height: pct(value) }]} />
+        {ticks.map((t) => (
+          <View key={`g${t}`} style={[styles.barGrid, { bottom: pct(t) }]} />
+        ))}
+        {pb != null && pb > 0 && (
+          <View style={[styles.barMark, { bottom: pct(pb) }]}>
+            <View style={styles.barMarkLine} />
+            <Text style={styles.barMarkLabel}>PB</Text>
+          </View>
+        )}
+        {top != null && top > 0 && (
+          <View style={[styles.barMedalWrap, { bottom: pct(top) }]}>
+            <View style={styles.barMedal}>
+              <Text style={styles.barMedalNum}>1</Text>
+            </View>
+          </View>
+        )}
+      </View>
+      <View style={styles.barScale}>
+        {ticks.map((t) => (
+          <Text key={t} style={[styles.barTick, { bottom: pct(t) }]}>
+            {t}
+          </Text>
+        ))}
+      </View>
     </View>
   );
 }
@@ -466,7 +514,53 @@ const styles = StyleSheet.create({
   trackFill: { height: 6, borderRadius: 3 },
 
   // Middle
+  body: { flex: 1, flexDirection: 'row', gap: 8 },
   middle: { flex: 1, justifyContent: 'space-evenly' },
+
+  // Score bar (right side)
+  barWrap: { width: 52, flexDirection: 'row' },
+  barTrack: {
+    width: 14,
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 7,
+    overflow: 'visible',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  barFill: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.accent,
+    borderRadius: 7,
+  },
+  barGrid: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(32,48,32,0.18)',
+  },
+  barMark: { position: 'absolute', left: -3, right: -3, alignItems: 'flex-start', justifyContent: 'center' },
+  barMarkLine: { height: 3, alignSelf: 'stretch', backgroundColor: COLORS.accent, borderRadius: 2 },
+  barMarkLabel: { position: 'absolute', left: 24, color: COLORS.accent, fontSize: 12, fontWeight: '900' },
+  barMedalWrap: { position: 'absolute', left: 20, alignItems: 'center', justifyContent: 'center' },
+  barMedal: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.accent,
+    borderWidth: 2,
+    borderColor: '#B8860B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -11,
+  },
+  barMedalNum: { color: '#5a3a00', fontSize: 12, fontWeight: '900' },
+  barScale: { flex: 1, marginLeft: 4, alignSelf: 'stretch', marginTop: 8, marginBottom: 8 },
+  barTick: { position: 'absolute', left: 0, color: COLORS.textMuted, fontSize: 12, fontWeight: '700', marginBottom: -8 },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
