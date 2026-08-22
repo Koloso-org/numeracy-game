@@ -17,7 +17,7 @@ export default function ChallengeVisual({ visual }: { visual: Visual }) {
 }
 
 function RectVisual({ w, h, unit }: { w: number; h: number; unit: string }) {
-  const maxPx = 150;
+  const maxPx = 128;
   const scale = maxPx / Math.max(w, h);
   const W = Math.round(w * scale);
   const H = Math.round(h * scale);
@@ -33,7 +33,7 @@ function RectVisual({ w, h, unit }: { w: number; h: number; unit: string }) {
 }
 
 function CoordVisual({ size, point }: { size: number; point: [number, number] }) {
-  const cell = 22;
+  const cell = 18;
   const pad = 16;
   const gw = size * cell;
   const nums = Array.from({ length: size + 1 });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../theme';
 import { Level, Question, isCorrect, pickQuestions } from '../challenge/questions';
 import ChallengeVisual from '../challenge/ChallengeVisual';
@@ -213,12 +213,12 @@ function ChallengeGame({
         <View style={[styles.progressFill, { width: `${elapsedPct}%` }]} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <View style={styles.qCard}>
-          <Text style={q.visual ? styles.qPromptSmall : styles.qPromptBig}>{q.prompt}</Text>
-          {q.visual && <ChallengeVisual visual={q.visual} />}
-        </View>
+      <View style={styles.qCard}>
+        <Text style={q.visual ? styles.qPromptSmall : styles.qPromptBig}>{q.prompt}</Text>
+        {q.visual && <ChallengeVisual visual={q.visual} />}
+      </View>
 
+      <View style={styles.answerArea}>
         {q.type === 'mc' ? (
           <View style={styles.options}>
             {q.options!.map((opt, oi) => {
@@ -257,7 +257,7 @@ function ChallengeGame({
             <NumericKeypad onKey={onKey} />
           </>
         )}
-      </ScrollView>
+      </View>
 
       <Pressable testID="cq-skip" onPress={skip} disabled={!!feedback} style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
         <Text style={styles.skipText}>SKIP</Text>
@@ -403,27 +403,28 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 3, backgroundColor: COLORS.accent },
 
   // Play — body
-  body: { paddingTop: 14, paddingBottom: 8 },
-  qCard: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', minHeight: 120 },
-  qPromptBig: { color: COLORS.ink, fontSize: 32, fontWeight: '800', textAlign: 'center' },
+  qCard: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingVertical: 16, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', minHeight: 84 },
+  qPromptBig: { color: COLORS.ink, fontSize: 30, fontWeight: '800', textAlign: 'center' },
   qPromptSmall: { color: COLORS.ink, fontSize: 17, fontWeight: '700', textAlign: 'center' },
 
-  options: { marginTop: 48, gap: 10 },
-  option: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  // Answer area fills the space left below the question card (no overlap / scroll).
+  answerArea: { flex: 1, marginTop: 40 },
+  options: { flex: 1, gap: 10 },
+  option: { flex: 1, minHeight: 44, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   optionText: { color: COLORS.ink, fontSize: 21, fontWeight: '800' },
   optionRight: { borderColor: COLORS.correct, backgroundColor: COLORS.correctBg },
   optionWrong: { borderColor: COLORS.wrong, backgroundColor: COLORS.wrongBg },
 
-  answerBox: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, height: 62, marginTop: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  answerBox: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, height: 60, flexShrink: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   answerRight: { borderColor: COLORS.correct, backgroundColor: COLORS.correctBg },
   answerWrong: { borderColor: COLORS.wrong, backgroundColor: COLORS.wrongBg },
   answerText: { color: COLORS.ink, fontSize: 30, fontWeight: '800' },
   cursor: { width: 3, height: 30, backgroundColor: COLORS.inkMuted, marginLeft: 2, borderRadius: 2 },
   answerUnit: { color: COLORS.inkMuted, fontSize: 18, fontWeight: '800', marginLeft: 8 },
 
-  keypad: { marginTop: 12, gap: 8 },
-  kpRow: { flexDirection: 'row', gap: 8 },
-  key: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  keypad: { flex: 1, marginTop: 10, gap: 8 },
+  kpRow: { flex: 1, flexDirection: 'row', gap: 8 },
+  key: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   keyPressed: { opacity: 0.7 },
   keyText: { color: COLORS.ink, fontSize: 24, fontWeight: '800' },
   keyClear: { color: CLEAR_RED, fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
