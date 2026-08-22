@@ -24,7 +24,9 @@ import CrossNumberScreen from './src/screens/CrossNumberScreen';
 import ChallengeScreen from './src/screens/ChallengeScreen';
 import ChallengeLeaderboardScreen from './src/screens/ChallengeLeaderboardScreen';
 import NumberLadderScreen from './src/screens/NumberLadderScreen';
+import LadderLeaderboardScreen from './src/screens/LadderLeaderboardScreen';
 import { Level } from './src/challenge/questions';
+import { LadderLevel } from './src/ladder/generator';
 
 type Screen =
   | 'boot'
@@ -37,7 +39,8 @@ type Screen =
   | 'crossnumber'
   | 'challenge'
   | 'challengeLeaderboard'
-  | 'numberladder';
+  | 'numberladder'
+  | 'ladderLeaderboard';
 const TICK_MS = 100;
 
 interface GameResult {
@@ -51,6 +54,7 @@ export default function App() {
   const [lastResult, setLastResult] = useState<GameResult>({ plus: 0, minus: 0 });
   const [username, setUsername] = useState<string | null>(null);
   const [challengeLevel, setChallengeLevel] = useState<Level>('beginner');
+  const [ladderLevel, setLadderLevel] = useState<LadderLevel>('beginner');
 
   // Keep the game inside a phone-width "device" on wide screens (desktop/laptop),
   // centred on a cream surround — matching the Koloso device-frame layout.
@@ -143,7 +147,21 @@ export default function App() {
         <CrossNumberScreen onBack={() => setScreen('menu')} />
       )}
       {screen === 'numberladder' && (
-        <NumberLadderScreen onBack={() => setScreen('menu')} />
+        <NumberLadderScreen
+          username={username}
+          onBack={() => setScreen('menu')}
+          onOpenLeaderboard={(lvl) => {
+            setLadderLevel(lvl);
+            setScreen('ladderLeaderboard');
+          }}
+        />
+      )}
+      {screen === 'ladderLeaderboard' && (
+        <LadderLeaderboardScreen
+          level={ladderLevel}
+          username={username}
+          onBack={() => setScreen('numberladder')}
+        />
       )}
       {screen === 'challenge' && (
         <ChallengeScreen

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { DimensionValue, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, DimensionValue, Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../theme';
 import {
   LadderLevel,
@@ -8,6 +8,8 @@ import {
   nextStep,
   stepSeconds,
 } from '../ladder/generator';
+import { supabase } from '../supabase';
+import { LadderRank, getLadderTopScore, getMyLadderRank, submitLadder } from '../ladderLeaderboard';
 
 // Number Ladder — an endless chain-calculation streak.
 //
@@ -29,10 +31,28 @@ const LEVEL_SUB: Record<LadderLevel, string> = {
   expert: 'Bigger numbers, %, fractions & harder chains',
 };
 
-export default function NumberLadderScreen({ onBack }: { onBack: () => void }) {
+export default function NumberLadderScreen({
+  onBack,
+  username,
+  onOpenLeaderboard,
+}: {
+  onBack: () => void;
+  username: string | null;
+  onOpenLeaderboard: (level: LadderLevel) => void;
+}) {
   const [level, setLevel] = useState<LadderLevel | null>(null);
-  if (!level) return <LevelSelect onBack={onBack} onPick={setLevel} />;
-  return <LadderGame key={level} level={level} onQuit={() => setLevel(null)} />;
+  if (!level) {
+    return <LevelSelect onBack={onBack} onPick={setLevel} onOpenLeaderboard={onOpenLeaderboard} />;
+  }
+  return (
+    <LadderGame
+      key={level}
+      level={level}
+      username={username}
+      onQuit={() => setLevel(null)}
+      onOpenLeaderboard={onOpenLeaderboard}
+    />
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -40,9 +60,11 @@ export default function NumberLadderScreen({ onBack }: { onBack: () => void }) {
 function LevelSelect({
   onBack,
   onPick,
+  onOpenLeaderboard,
 }: {
   onBack: () => void;
   onPick: (l: LadderLevel) => void;
+  onOpenLeaderboard: (level: LadderLevel) => void;
 }) {
   return (
     <View style={styles.selectRoot}>
@@ -56,25 +78,29 @@ function LevelSelect({
       </Text>
 
       {(['beginner', 'expert'] as LadderLevel[]).map((lvl) => (
-        <Pressable
-          key={lvl}
-          testID={`ladder-level-${lvl}`}
-          onPress={() => onPick(lvl)}
-          style={({ pressed }) => [
-            styles.levelBtn,
-            lvl === 'expert' && styles.levelBtnExpert,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={[styles.levelName, lvl === 'expert' && { color: '#fff' }]}>
-            {LEVEL_LABEL[lvl]}
-          </Text>
-          <Text
-            style={[styles.levelSub, lvl === 'expert' && { color: 'rgba(255,255,255,0.85)' }]}
+        <View key={lvl} style={styles.levelCard}>
+          <Pressable
+            testID={`ladder-level-${lvl}`}
+            onPress={() => onPick(lvl)}
+            style={({ pressed }) => [
+              styles.levelBtn,
+              lvl === 'expert' && styles.levelBtnExpert,
+              pressed && styles.pressed,
+            ]}
           >
-            {LEVEL_SUB[lvl]}
-          </Text>
-        </Pressable>
+            <Text style={[styles.levelName, lvl === 'expert' && { color: '#fff' }]}>
+              {LEVEL_LABEL[lvl]}
+            </Text>
+            <Text
+              style={[styles.levelSub, lvl === 'expert' && { color: 'rgba(255,255,255,0.85)' }]}
+            >
+              {LEVEL_SUB[lvl]}
+            </Text>
+          </Pressable>
+          <Pressable onPress={() => onOpenLeaderboard(lvl)} hitSlop={8} style={styles.lbLink}>
+            <Text style={styles.lbLinkText}>🏆 {LEVEL_LABEL[lvl]} leaderboard</Text>
+          </Pressable>
+        </View>
       ))}
     </View>
   );
@@ -112,10 +138,32 @@ function fmtTime(ms: number): string {
 
 // ---------------------------------------------------------------------------
 
-function LadderGame({ level, onQuit }: { level: LadderLevel; onQuit: () => void }) {
+function LadderGame({
+  level,
+  username,
+  onQuit,
+  onOpenLeaderboard,
+}: {
+  level: LadderLevel;
+  username: string | null;
+  onQuit: () => void;
+  onOpenLeaderboard: (level: LadderLevel) => void;
+}) {
   const randRef = useRef<() => number>(Math.random);
   const [phase, setPhase] = useState<'count' | 'play' | 'over'>('count');
   const [count, setCount] = useState(3);
+  const [topScore, setTopScore] = useState<number | null>(null);
+
+  // Fetch the current #1 (rungs) so the score-bar medal has a target.
+  useEffect(() => {
+    let active = true;
+    getLadderTopScore(level).then((t) => {
+      if (active) setTopScore(t);
+    });
+    return () => {
+      active = false;
+    };
+  }, [level]);
 
   const [current, setCurrent] = useState<Rung>(() => makeStarter(level, randRef.current));
   const [climbed, setClimbed] = useState(0); // rungs cleared so far
@@ -233,7 +281,16 @@ function LadderGame({ level, onQuit }: { level: LadderLevel; onQuit: () => void 
   }
 
   if (phase === 'over' && result) {
-    return <LadderResult level={level} result={result} onPlayAgain={onQuit} onGames={onQuit} />;
+    return (
+      <LadderResult
+        level={level}
+        username={username}
+        result={result}
+        onPlayAgain={onQuit}
+        onGames={onQuit}
+        onOpenLeaderboard={onOpenLeaderboard}
+      />
+    );
   }
 
   const frac = limit > 0 ? timeLeft / limit : 0;
@@ -309,7 +366,7 @@ function LadderGame({ level, onQuit }: { level: LadderLevel; onQuit: () => void 
           </Pressable>
         </View>
       </View>
-        <ScoreBar value={climbed} pb={pbSteps} top={null} />
+        <ScoreBar value={climbed} pb={pbSteps} top={topScore} />
       </View>
 
       <Pressable onPress={endRun} hitSlop={8} style={styles.quitRow}>
@@ -411,16 +468,40 @@ function Keypad({ onKey }: { onKey: (k: string) => void }) {
 
 function LadderResult({
   level,
+  username,
   result,
   onPlayAgain,
   onGames,
+  onOpenLeaderboard,
 }: {
   level: LadderLevel;
+  username: string | null;
   result: { steps: number; timeMs: number; best: Best | null };
   onPlayAgain: () => void;
   onGames: () => void;
+  onOpenLeaderboard: (level: LadderLevel) => void;
 }) {
   const newBest = result.best === null && result.steps > 0;
+  const [saving, setSaving] = useState<boolean>(!!username && !!supabase && result.steps > 0);
+  const [rank, setRank] = useState<LadderRank | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (username && supabase && result.steps > 0) {
+      (async () => {
+        await submitLadder(level, result.steps, result.timeMs);
+        const mine = await getMyLadderRank(level);
+        if (active) {
+          setRank(mine);
+          setSaving(false);
+        }
+      })();
+    }
+    return () => {
+      active = false;
+    };
+  }, [level, result.steps, result.timeMs, username]);
+
   return (
     <View style={[styles.root, styles.centerAll]}>
       <Text style={styles.overTitle}>Run over</Text>
@@ -437,16 +518,34 @@ function LadderResult({
         ) : null}
       </View>
 
+      {username ? (
+        saving ? (
+          <View style={styles.rankRow}>
+            <ActivityIndicator color={COLORS.accent} />
+            <Text style={styles.rankText}>  Saving…</Text>
+          </View>
+        ) : rank ? (
+          <Text style={styles.rankText}>🏆 Best {rank.best_score} rungs · Rank #{rank.rank}</Text>
+        ) : null
+      ) : (
+        <Text style={styles.rankText}>Log in to save your run & join the leaderboard.</Text>
+      )}
+
       <Pressable
         onPress={onPlayAgain}
         style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
       >
         <Text style={styles.primaryText}>Play again</Text>
       </Pressable>
+      <Pressable
+        onPress={() => onOpenLeaderboard(level)}
+        style={({ pressed }) => [styles.outlineBtn, pressed && styles.pressed]}
+      >
+        <Text style={styles.outlineText}>🏆 {LEVEL_LABEL[level]} leaderboard</Text>
+      </Pressable>
       <Pressable onPress={onGames} hitSlop={8} style={styles.secondaryBtn}>
         <Text style={styles.secondaryText}>‹ Back to games</Text>
       </Pressable>
-      <Text style={styles.levelTag}>{LEVEL_LABEL[level]} ladder</Text>
     </View>
   );
 }
@@ -471,18 +570,19 @@ const styles = StyleSheet.create({
     maxWidth: 330,
     marginBottom: 22,
   },
+  levelCard: { width: '100%', maxWidth: 340, marginTop: 14, alignItems: 'center' },
   levelBtn: {
     backgroundColor: LADDER_ACCENT,
     borderRadius: 18,
     paddingVertical: 18,
     paddingHorizontal: 20,
     width: '100%',
-    maxWidth: 340,
-    marginTop: 14,
   },
   levelBtnExpert: { backgroundColor: '#164A44' },
   levelName: { color: '#fff', fontSize: 22, fontWeight: '900' },
   levelSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 4 },
+  lbLink: { marginTop: 8, padding: 4 },
+  lbLinkText: { color: COLORS.accent, fontSize: 14, fontWeight: '800' },
 
   // Countdown
   readyText: { color: COLORS.textMuted, fontSize: 18, fontWeight: '700' },
@@ -638,7 +738,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryText: { color: COLORS.accentText, fontSize: 18, fontWeight: '900' },
+  outlineBtn: {
+    marginTop: 12,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  outlineText: { color: COLORS.accent, fontSize: 16, fontWeight: '800' },
   secondaryBtn: { marginTop: 14, padding: 8 },
   secondaryText: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
+  rankRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  rankText: { color: COLORS.text, fontSize: 15, fontWeight: '700', marginBottom: 16, textAlign: 'center' },
   levelTag: { color: COLORS.textMuted, fontSize: 13, marginTop: 18 },
 });
