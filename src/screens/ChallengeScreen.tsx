@@ -106,6 +106,7 @@ function ChallengeGame({
   const [phase, setPhase] = useState<'count' | 'play' | 'result'>('count');
   const [count, setCount] = useState(3);
   const [timeLeft, setTimeLeft] = useState(GAME_SECONDS);
+  const [headerH, setHeaderH] = useState(0);
 
   const timeRef = useRef(GAME_SECONDS);
   const correctRef = useRef(0);
@@ -204,22 +205,25 @@ function ChallengeGame({
 
   return (
     <View style={styles.root}>
-      <View style={styles.topBar}>
-        <View style={styles.pill}><Text style={styles.pillText}>Q{index + 1} of {questions.length}</Text></View>
-        <View style={[styles.timer, { backgroundColor: timerColor }]}><Text style={styles.timerText}>{timeStr}</Text></View>
-        <View style={styles.pill}><Text style={styles.pillText}>Score {correct}</Text></View>
-      </View>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${elapsedPct}%` }]} />
-      </View>
-
-      <View style={styles.qCard}>
-        <Text style={q.visual ? styles.qPromptSmall : styles.qPromptBig}>{q.prompt}</Text>
-        {q.visual && <ChallengeVisual visual={q.visual} />}
+      <View style={styles.headerZone} onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>
+        <View style={styles.topBar}>
+          <View style={styles.pill}><Text style={styles.pillText}>Q{index + 1} of {questions.length}</Text></View>
+          <View style={[styles.timer, { backgroundColor: timerColor }]}><Text style={styles.timerText}>{timeStr}</Text></View>
+          <View style={styles.pill}><Text style={styles.pillText}>Score {correct}</Text></View>
+        </View>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${elapsedPct}%` }]} />
+        </View>
       </View>
 
-      <View style={styles.answerArea}>
-        {q.type === 'mc' ? (
+      <View style={styles.middleZone}>
+        <View style={styles.qCard}>
+          <Text style={q.visual ? styles.qPromptSmall : styles.qPromptBig}>{q.prompt}</Text>
+          {q.visual && <ChallengeVisual visual={q.visual} />}
+        </View>
+
+        <View style={styles.answerZone}>
+          {q.type === 'mc' ? (
           <View style={styles.options}>
             {q.options!.map((opt, oi) => {
               const picked = feedback?.picked === opt;
@@ -257,11 +261,13 @@ function ChallengeGame({
             <NumericKeypad onKey={onKey} />
           </>
         )}
+        <Pressable testID="cq-skip" onPress={skip} disabled={!!feedback} style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
+          <Text style={styles.skipText}>SKIP</Text>
+        </Pressable>
+        </View>
       </View>
 
-      <Pressable testID="cq-skip" onPress={skip} disabled={!!feedback} style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
-        <Text style={styles.skipText}>SKIP</Text>
-      </Pressable>
+      <View style={{ height: headerH }} />
     </View>
   );
 }
@@ -393,7 +399,11 @@ const styles = StyleSheet.create({
   countNumber: { color: COLORS.accent, fontSize: 120, fontWeight: '800' },
 
   // Play — top bar
-  root: { flex: 1, paddingTop: 40, paddingHorizontal: 16, paddingBottom: 14 },
+  // Header at top; an equal empty space at the bottom frames it; the question
+  // and answer zones distribute evenly in the space between.
+  root: { flex: 1, paddingTop: 16, paddingHorizontal: 16, paddingBottom: 16 },
+  headerZone: { flexShrink: 0 },
+  middleZone: { flex: 1, justifyContent: 'space-evenly' },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pill: { backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16 },
   pillText: { color: COLORS.ink, fontSize: 16, fontWeight: '800' },
@@ -403,14 +413,15 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 3, backgroundColor: COLORS.accent },
 
   // Play — body
-  qCard: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingVertical: 16, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', minHeight: 84 },
+  qCard: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingVertical: 18, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', minHeight: 88, flexShrink: 1 },
   qPromptBig: { color: COLORS.ink, fontSize: 30, fontWeight: '800', textAlign: 'center' },
   qPromptSmall: { color: COLORS.ink, fontSize: 17, fontWeight: '700', textAlign: 'center' },
 
-  // Answer area fills the space left below the question card (no overlap / scroll).
-  answerArea: { flex: 1, marginTop: 40 },
-  options: { flex: 1, gap: 12 },
-  option: { flex: 1, minHeight: 44, maxHeight: 72, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  // Answer zone is a compact grouped unit (options / keypad + SKIP); the root
+  // spreads it evenly with the header and question zones.
+  answerZone: { flexShrink: 1 },
+  options: { gap: 12 },
+  option: { height: 58, minHeight: 42, flexShrink: 1, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   optionText: { color: COLORS.ink, fontSize: 21, fontWeight: '800' },
   optionRight: { borderColor: COLORS.correct, backgroundColor: COLORS.correctBg },
   optionWrong: { borderColor: COLORS.wrong, backgroundColor: COLORS.wrongBg },
@@ -422,9 +433,9 @@ const styles = StyleSheet.create({
   cursor: { width: 3, height: 30, backgroundColor: COLORS.inkMuted, marginLeft: 2, borderRadius: 2 },
   answerUnit: { color: COLORS.inkMuted, fontSize: 18, fontWeight: '800', marginLeft: 8 },
 
-  keypad: { flex: 1, marginTop: 10, gap: 8 },
-  kpRow: { flex: 1, maxHeight: 64, flexDirection: 'row', gap: 8 },
-  key: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
+  keypad: { marginTop: 10, gap: 8 },
+  kpRow: { height: 54, minHeight: 40, flexShrink: 1, flexDirection: 'row', gap: 8 },
+  key: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   keyPressed: { opacity: 0.7 },
   keyText: { color: COLORS.ink, fontSize: 24, fontWeight: '800' },
   keyClear: { color: CLEAR_RED, fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
@@ -432,7 +443,7 @@ const styles = StyleSheet.create({
   keyEnter: { flex: 2, backgroundColor: COLORS.accent },
   keyEnterText: { color: COLORS.accentText, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
 
-  skip: { backgroundColor: SKIP_BLUE, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 10 },
+  skip: { backgroundColor: SKIP_BLUE, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 18 },
   skipText: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', letterSpacing: 2 },
 
   // Result
