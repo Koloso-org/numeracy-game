@@ -1,0 +1,63 @@
+name: Deploy to GitHub Pages
+
+# Builds the Expo web export and publishes it to GitHub Pages on every push to
+# main. Replaces the Netlify build (paused when the team runs out of credits).
+# GitHub Actions builds are free for public repositories.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Permissions the deploy job needs to publish to Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deploy at a time; a newer push cancels an in-progress one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build web export
+        run: npx expo export --platform web
+        env:
+          # Public, RLS-protected values (same as the old netlify.toml). Safe to
+          # inline: the Supabase anon key is designed to be exposed client-side.
+          EXPO_PUBLIC_SUPABASE_URL: https://vdmowfyufftvlhltqmrg.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_0Sm8ftOf8zzxCFAKcpXssg_ZtZ2Tryz
+          EXPO_PUBLIC_LOGIN_EMAIL_DOMAIN: koloso.app
+
+      - name: Prepare static site (custom domain, SPA fallback, no Jekyll)
+        run: |
+          echo 'games.koloso.app' > dist/CNAME
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
