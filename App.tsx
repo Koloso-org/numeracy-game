@@ -23,6 +23,7 @@ import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import CrossNumberScreen from './src/screens/CrossNumberScreen';
 import ChallengeScreen from './src/screens/ChallengeScreen';
 import ChallengeLeaderboardScreen from './src/screens/ChallengeLeaderboardScreen';
+import NumberLadderScreen from './src/screens/NumberLadderScreen';
 import { Level } from './src/challenge/questions';
 
 type Screen =
@@ -35,7 +36,8 @@ type Screen =
   | 'leaderboard'
   | 'crossnumber'
   | 'challenge'
-  | 'challengeLeaderboard';
+  | 'challengeLeaderboard'
+  | 'numberladder';
 const TICK_MS = 100;
 
 interface GameResult {
@@ -115,6 +117,7 @@ export default function App() {
           onNumberRules={() => setScreen('home')}
           onCrossNumber={() => setScreen('crossnumber')}
           onChallenge={() => setScreen('challenge')}
+          onNumberLadder={() => setScreen('numberladder')}
           onLogout={async () => {
             await signOut();
             setUsername(null);
@@ -138,6 +141,9 @@ export default function App() {
       )}
       {screen === 'crossnumber' && (
         <CrossNumberScreen onBack={() => setScreen('menu')} />
+      )}
+      {screen === 'numberladder' && (
+        <NumberLadderScreen onBack={() => setScreen('menu')} />
       )}
       {screen === 'challenge' && (
         <ChallengeScreen
@@ -190,12 +196,14 @@ function GameMenuScreen({
   onNumberRules,
   onCrossNumber,
   onChallenge,
+  onNumberLadder,
   onLogout,
 }: {
   username: string | null;
   onNumberRules: () => void;
   onCrossNumber: () => void;
   onChallenge: () => void;
+  onNumberLadder: () => void;
   onLogout: () => void;
 }) {
   return (
@@ -237,6 +245,16 @@ function GameMenuScreen({
           tagline="Race the clock"
           icon={<ChallengeIcon />}
           onPress={onChallenge}
+        />
+        <GameTile
+          bg="#227C72"
+          fg="#FFFFFF"
+          subFg="rgba(255,255,255,0.82)"
+          blob="rgba(255,255,255,0.12)"
+          title={'Number\nLadder'}
+          tagline="Climb the chain"
+          icon={<LadderIcon />}
+          onPress={onNumberLadder}
         />
       </View>
 
@@ -331,6 +349,19 @@ function CrossNumberIcon() {
         <View key={i} style={[styles.cnCell, black.has(i) && styles.cnCellBlack]}>
           {nums[i] && !black.has(i) && <Text style={styles.cnCellNum}>{nums[i]}</Text>}
         </View>
+      ))}
+    </View>
+  );
+}
+
+// Number Ladder icon: a small ladder (two rails + rungs) climbing up.
+function LadderIcon() {
+  return (
+    <View style={styles.ladderWrap}>
+      <View style={[styles.ladderRail, { left: 6 }]} />
+      <View style={[styles.ladderRail, { right: 6 }]} />
+      {[6, 17, 28].map((top) => (
+        <View key={top} style={[styles.ladderRung, { top }]} />
       ))}
     </View>
   );
@@ -746,6 +777,11 @@ const styles = StyleSheet.create({
   },
   cnCellBlack: { backgroundColor: COLORS.ink },
   cnCellNum: { position: 'absolute', top: 0, left: 1.5, fontSize: 7, fontWeight: '800', color: 'rgba(31,42,58,0.7)' },
+
+  // Number Ladder icon (a small ladder)
+  ladderWrap: { width: 40, height: 40 },
+  ladderRail: { position: 'absolute', top: 2, bottom: 2, width: 4, borderRadius: 2, backgroundColor: '#FFFFFF' },
+  ladderRung: { position: 'absolute', left: 6, right: 6, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.92)' },
 
   // Koloso Challenge icon (stopwatch)
   stopWrap: { alignItems: 'center' },
