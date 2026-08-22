@@ -215,12 +215,13 @@ function ChallengeGame({
         </View>
       </View>
 
-      <View style={styles.qCard}>
-        <Text style={q.visual ? styles.qPromptSmall : styles.qPromptBig}>{q.prompt}</Text>
-        {q.visual && <ChallengeVisual visual={q.visual} />}
-      </View>
+      <View style={styles.middleContainer}>
+        <View style={styles.qCard}>
+          <Text style={q.visual ? styles.qPromptSmall : styles.qPromptBig}>{q.prompt}</Text>
+          {q.visual && <ChallengeVisual visual={q.visual} />}
+        </View>
 
-      <View style={styles.answerZone}>
+        <View style={styles.answerZone}>
         {q.type === 'mc' ? (
           <View style={styles.options}>
             {q.options!.map((opt, oi) => {
@@ -262,6 +263,7 @@ function ChallengeGame({
         <Pressable testID="cq-skip" onPress={skip} disabled={!!feedback} style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
           <Text style={styles.skipText}>SKIP</Text>
         </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -394,10 +396,11 @@ const styles = StyleSheet.create({
   countNumber: { color: COLORS.accent, fontSize: 120, fontWeight: '800' },
 
   // Play — top bar
-  // The three zones (header / question / answer+SKIP) are distributed with equal
-  // gaps top-to-bottom, so there's a matching empty space below SKIP.
-  root: { flex: 1, paddingTop: 10, paddingHorizontal: 16, paddingBottom: 10, justifyContent: 'space-evenly' },
+  // Header stays anchored at the top; the question and answer zones distribute
+  // evenly in the space below it (leaving a matching gap under SKIP).
+  root: { flex: 1, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 12 },
   headerZone: { flexShrink: 0 },
+  middleContainer: { flex: 1, justifyContent: 'space-evenly' },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pill: { backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16 },
   pillText: { color: COLORS.ink, fontSize: 16, fontWeight: '800' },
