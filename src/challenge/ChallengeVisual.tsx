@@ -77,14 +77,10 @@ function NetVisual({ grid }: { grid: string[] }) {
 const CELL = 30;
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    marginBottom: 4,
+    marginTop: 10,
   },
   rect: { borderWidth: 2, borderColor: INK, backgroundColor: FILL },
   dim: { color: INK, fontSize: 13, fontWeight: '800' },

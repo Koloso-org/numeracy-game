@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../theme';
 import { Level, Question, isCorrect, pickQuestions } from '../challenge/questions';
 import ChallengeVisual from '../challenge/ChallengeVisual';
@@ -17,6 +9,13 @@ import { ChallengeRank, getMyChallengeRank, submitChallenge } from '../challenge
 const GAME_SECONDS = 120;
 const QUESTION_COUNT = 10;
 const TICK_MS = 100;
+
+const TIMER_GREEN = '#4E7D34';
+const TIMER_AMBER = '#B4661F';
+const TIMER_RED = '#A5321C';
+const SKIP_BLUE = '#4E7FB0';
+const CLEAR_RED = '#A5321C';
+const KEY_ALT = '#7A2214';
 
 const LEVEL_LABEL: Record<Level, string> = { beginner: 'Beginner', expert: 'Expert' };
 const LEVEL_SUB: Record<Level, string> = {
@@ -34,7 +33,6 @@ export default function ChallengeScreen({
   onOpenLeaderboard: (level: Level) => void;
 }) {
   const [level, setLevel] = useState<Level | null>(null);
-
   if (!level) {
     return <LevelSelect onBack={onBack} onPick={setLevel} onOpenLeaderboard={onOpenLeaderboard} />;
   }
@@ -66,9 +64,7 @@ function LevelSelect({
         <Text style={styles.backText}>‹ Games</Text>
       </Pressable>
       <Text style={styles.bigTitle}>Koloso Challenge</Text>
-      <Text style={styles.selectSub}>
-        10 questions · 2 minutes · answer or skip. Choose your level.
-      </Text>
+      <Text style={styles.selectSub}>10 questions · 2 minutes · answer or skip. Choose your level.</Text>
 
       {(['beginner', 'expert'] as Level[]).map((lvl) => (
         <View key={lvl} style={styles.levelCard}>
@@ -115,7 +111,6 @@ function ChallengeGame({
   const correctRef = useRef(0);
   const doneRef = useRef(false);
 
-  // 3-2-1 countdown, then start.
   useEffect(() => {
     if (phase !== 'count') return;
     if (count <= 0) {
@@ -126,7 +121,6 @@ function ChallengeGame({
     return () => clearTimeout(id);
   }, [count, phase]);
 
-  // Game timer.
   useEffect(() => {
     if (phase !== 'play') return;
     const id = setInterval(() => {
@@ -147,11 +141,8 @@ function ChallengeGame({
   const nextQuestion = () => {
     setFeedback(null);
     setEntry('');
-    if (index + 1 >= questions.length) {
-      finish();
-    } else {
-      setIndex((i) => i + 1);
-    }
+    if (index + 1 >= questions.length) finish();
+    else setIndex((i) => i + 1);
   };
 
   const answer = (given: string, pickedOption?: string) => {
@@ -169,6 +160,16 @@ function ChallengeGame({
   const skip = () => {
     if (feedback || doneRef.current) return;
     nextQuestion();
+  };
+
+  const onKey = (k: string) => {
+    if (feedback || doneRef.current) return;
+    if (k === 'CLEAR') setEntry('');
+    else if (k === 'DEL') setEntry((e) => e.slice(0, -1));
+    else if (k === 'SIGN') setEntry((e) => (e.startsWith('-') ? e.slice(1) : '-' + e));
+    else if (k === '.') setEntry((e) => (e.includes('.') ? e : e + '.'));
+    else if (k === 'ENTER') { if (entry.trim()) answer(entry); }
+    else setEntry((e) => (e.replace('-', '').replace('.', '').length < 6 ? e + k : e));
   };
 
   if (phase === 'count') {
@@ -197,37 +198,26 @@ function ChallengeGame({
 
   const q = questions[index];
   const seconds = Math.ceil(timeLeft);
-  const mm = Math.floor(seconds / 60);
-  const ss = seconds % 60;
-  const timeColor = seconds <= 10 ? COLORS.wrong : seconds <= 30 ? COLORS.warn : COLORS.correct;
+  const timeStr = seconds >= 60 ? `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}` : `${seconds}`;
+  const timerColor = seconds <= 10 ? TIMER_RED : seconds <= 30 ? TIMER_AMBER : TIMER_GREEN;
+  const elapsedPct = ((GAME_SECONDS - timeLeft) / GAME_SECONDS) * 100;
 
   return (
-    <View style={styles.playRoot}>
-      <View style={styles.topRow}>
-        <Text style={styles.progressText}>
-          {index + 1} / {questions.length}
-        </Text>
-        <Text style={styles.correctText}>✓ {correct}</Text>
-        <Text style={[styles.timeText, { color: timeColor }]}>
-          {mm}:{ss.toString().padStart(2, '0')}
-        </Text>
+    <View style={styles.root}>
+      <View style={styles.topBar}>
+        <View style={styles.pill}><Text style={styles.pillText}>Q{index + 1} of {questions.length}</Text></View>
+        <View style={[styles.timer, { backgroundColor: timerColor }]}><Text style={styles.timerText}>{timeStr}</Text></View>
+        <View style={styles.pill}><Text style={styles.pillText}>Score {correct}</Text></View>
       </View>
-      <View style={styles.dots}>
-        {questions.map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              i < index && styles.dotDone,
-              i === index && styles.dotCurrent,
-            ]}
-          />
-        ))}
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${elapsedPct}%` }]} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        {q.visual && <ChallengeVisual visual={q.visual} />}
-        <Text style={styles.prompt}>{q.prompt}</Text>
+      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={styles.qCard}>
+          <Text style={q.visual ? styles.qPromptSmall : styles.qPromptBig}>{q.prompt}</Text>
+          {q.visual && <ChallengeVisual visual={q.visual} />}
+        </View>
 
         {q.type === 'mc' ? (
           <View style={styles.options}>
@@ -254,48 +244,61 @@ function ChallengeGame({
             })}
           </View>
         ) : (
-          <View style={styles.entryWrap}>
-            <View style={styles.entryRow}>
-              <TextInput
-                testID="cq-input"
-                style={[
-                  styles.input,
-                  feedback?.ok === true && styles.inputRight,
-                  feedback?.ok === false && styles.inputWrong,
-                ]}
-                value={entry}
-                onChangeText={setEntry}
-                editable={!feedback}
-                placeholder="Type your answer"
-                placeholderTextColor={COLORS.inkMuted}
-                autoFocus
-                onSubmitEditing={() => entry.trim() && answer(entry)}
-                returnKeyType="done"
-              />
-              {q.unit ? <Text style={styles.unit}>{q.unit}</Text> : null}
+          <>
+            <View style={[
+              styles.answerBox,
+              feedback?.ok === true && styles.answerRight,
+              feedback?.ok === false && styles.answerWrong,
+            ]}>
+              <Text style={styles.answerText}>{entry}</Text>
+              {!feedback && <View style={styles.cursor} />}
+              {q.unit ? <Text style={styles.answerUnit}>{q.unit}</Text> : null}
             </View>
-            {feedback && !feedback.ok && (
-              <Text style={styles.answerReveal}>Answer: {q.answer}</Text>
-            )}
-            <Pressable
-              testID="cq-submit"
-              disabled={!!feedback || !entry.trim()}
-              onPress={() => answer(entry)}
-              style={({ pressed }) => [
-                styles.submit,
-                (!entry.trim() || feedback) && styles.submitOff,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.submitText}>Submit</Text>
-            </Pressable>
-          </View>
+            <NumericKeypad onKey={onKey} />
+          </>
         )}
       </ScrollView>
 
-      <Pressable testID="cq-skip" onPress={skip} disabled={!!feedback} style={styles.skip} hitSlop={8}>
-        <Text style={styles.skipText}>Skip ›</Text>
+      <Pressable testID="cq-skip" onPress={skip} disabled={!!feedback} style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
+        <Text style={styles.skipText}>SKIP</Text>
       </Pressable>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+const KEYS: [string, string, 'num' | 'clear' | 'alt' | 'enter'][][] = [
+  [['7', '7', 'num'], ['8', '8', 'num'], ['9', '9', 'num'], ['CLEAR', 'CLEAR', 'clear']],
+  [['4', '4', 'num'], ['5', '5', 'num'], ['6', '6', 'num'], ['⌫', 'DEL', 'alt']],
+  [['1', '1', 'num'], ['2', '2', 'num'], ['3', '3', 'num'], ['+/−', 'SIGN', 'alt']],
+  [['0', '0', 'num'], ['.', '.', 'num'], ['ENTER', 'ENTER', 'enter']],
+];
+
+function NumericKeypad({ onKey }: { onKey: (k: string) => void }) {
+  return (
+    <View style={styles.keypad}>
+      {KEYS.map((row, ri) => (
+        <View key={ri} style={styles.kpRow}>
+          {row.map(([label, val, kind]) => (
+            <Pressable
+              key={val}
+              testID={`k-${val}`}
+              onPress={() => onKey(val)}
+              style={({ pressed }) => [styles.key, kind === 'enter' && styles.keyEnter, pressed && styles.keyPressed]}
+            >
+              <Text style={[
+                styles.keyText,
+                kind === 'clear' && styles.keyClear,
+                kind === 'alt' && styles.keyAlt,
+                kind === 'enter' && styles.keyEnterText,
+              ]}>
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ))}
     </View>
   );
 }
@@ -342,8 +345,10 @@ function ChallengeResult({
   return (
     <View style={styles.resultRoot}>
       <Text style={styles.resultLevel}>{LEVEL_LABEL[level]} Challenge</Text>
-      <Text style={styles.resultScore}>{score}<Text style={styles.resultOutOf}> / {total}</Text></Text>
-      <Text style={styles.resultTime}>Time: {timeTaken.toFixed(1)}s</Text>
+      <View style={styles.resultCard}>
+        <Text style={styles.resultScore}>{score}<Text style={styles.resultOutOf}> / {total}</Text></Text>
+        <Text style={styles.resultTime}>Time {timeTaken.toFixed(1)}s</Text>
+      </View>
 
       {username ? (
         saving ? (
@@ -366,9 +371,9 @@ function ChallengeResult({
 }
 
 const styles = StyleSheet.create({
-  back: { position: 'absolute', top: 16, left: 16, padding: 6 },
+  back: { position: 'absolute', top: 16, left: 16, padding: 6, zIndex: 2 },
   backText: { color: COLORS.accent, fontSize: 16, fontWeight: '800' },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: 0.75 },
 
   // Level select
   selectRoot: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
@@ -387,53 +392,58 @@ const styles = StyleSheet.create({
   countLabel: { color: COLORS.textMuted, fontSize: 20, fontWeight: '700', marginBottom: 8 },
   countNumber: { color: COLORS.accent, fontSize: 120, fontWeight: '800' },
 
-  // Play
-  playRoot: { flex: 1, paddingTop: 56, paddingHorizontal: 18, paddingBottom: 16 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  progressText: { color: COLORS.text, fontSize: 18, fontWeight: '800' },
-  correctText: { color: COLORS.correct, fontSize: 18, fontWeight: '800' },
-  timeText: { fontSize: 22, fontWeight: '800' },
-  dots: { flexDirection: 'row', gap: 5, marginTop: 10, justifyContent: 'center' },
-  dot: { width: 14, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.2)' },
-  dotDone: { backgroundColor: COLORS.correct },
-  dotCurrent: { backgroundColor: COLORS.accent },
+  // Play — top bar
+  root: { flex: 1, paddingTop: 40, paddingHorizontal: 16, paddingBottom: 14 },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pill: { backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16 },
+  pillText: { color: COLORS.ink, fontSize: 16, fontWeight: '800' },
+  timer: { width: 58, height: 58, borderRadius: 29, borderWidth: 3, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  timerText: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.18)', marginTop: 12, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3, backgroundColor: COLORS.accent },
 
-  body: { paddingTop: 18, paddingBottom: 8, alignItems: 'stretch' },
-  prompt: { color: COLORS.text, fontSize: 22, fontWeight: '800', textAlign: 'center', marginTop: 8, marginBottom: 18, lineHeight: 30 },
+  // Play — body
+  body: { paddingTop: 14, paddingBottom: 8 },
+  qCard: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', minHeight: 120 },
+  qPromptBig: { color: COLORS.ink, fontSize: 32, fontWeight: '800', textAlign: 'center' },
+  qPromptSmall: { color: COLORS.ink, fontSize: 17, fontWeight: '700', textAlign: 'center' },
 
-  options: { gap: 12 },
-  option: { backgroundColor: COLORS.card, borderWidth: 2, borderColor: COLORS.cardBorder, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  optionText: { color: COLORS.ink, fontSize: 20, fontWeight: '700' },
+  options: { marginTop: 12, gap: 10 },
+  option: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  optionText: { color: COLORS.ink, fontSize: 21, fontWeight: '800' },
   optionRight: { borderColor: COLORS.correct, backgroundColor: COLORS.correctBg },
   optionWrong: { borderColor: COLORS.wrong, backgroundColor: COLORS.wrongBg },
 
-  entryWrap: { alignItems: 'center', gap: 12 },
-  entryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  input: {
-    backgroundColor: COLORS.card, borderWidth: 2, borderColor: COLORS.cardBorder, borderRadius: 14,
-    paddingVertical: 14, paddingHorizontal: 16, fontSize: 22, fontWeight: '800', color: COLORS.ink,
-    minWidth: 200, textAlign: 'center',
-  },
-  inputRight: { borderColor: COLORS.correct, backgroundColor: COLORS.correctBg },
-  inputWrong: { borderColor: COLORS.wrong, backgroundColor: COLORS.wrongBg },
-  unit: { color: COLORS.text, fontSize: 18, fontWeight: '800' },
-  answerReveal: { color: COLORS.warn, fontSize: 15, fontWeight: '700' },
-  submit: { backgroundColor: COLORS.accent, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40, alignItems: 'center' },
-  submitOff: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  submitText: { color: COLORS.accentText, fontSize: 18, fontWeight: '800' },
+  answerBox: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, height: 62, marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  answerRight: { borderColor: COLORS.correct, backgroundColor: COLORS.correctBg },
+  answerWrong: { borderColor: COLORS.wrong, backgroundColor: COLORS.wrongBg },
+  answerText: { color: COLORS.ink, fontSize: 30, fontWeight: '800' },
+  cursor: { width: 3, height: 30, backgroundColor: COLORS.inkMuted, marginLeft: 2, borderRadius: 2 },
+  answerUnit: { color: COLORS.inkMuted, fontSize: 18, fontWeight: '800', marginLeft: 8 },
 
-  skip: { alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 20, marginTop: 4 },
-  skipText: { color: COLORS.textMuted, fontSize: 16, fontWeight: '700' },
+  keypad: { marginTop: 12, gap: 8 },
+  kpRow: { flexDirection: 'row', gap: 8 },
+  key: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  keyPressed: { opacity: 0.7 },
+  keyText: { color: COLORS.ink, fontSize: 24, fontWeight: '800' },
+  keyClear: { color: CLEAR_RED, fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
+  keyAlt: { color: KEY_ALT, fontSize: 20, fontWeight: '900' },
+  keyEnter: { flex: 2, backgroundColor: COLORS.accent },
+  keyEnterText: { color: COLORS.accentText, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+
+  skip: { backgroundColor: SKIP_BLUE, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 10 },
+  skipText: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', letterSpacing: 2 },
 
   // Result
   resultRoot: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  resultLevel: { color: COLORS.text, fontSize: 20, fontWeight: '700' },
-  resultScore: { color: COLORS.accent, fontSize: 88, fontWeight: '900', marginTop: 4 },
-  resultOutOf: { color: COLORS.textMuted, fontSize: 40, fontWeight: '800' },
-  resultTime: { color: COLORS.textMuted, fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  resultSub: { color: COLORS.textMuted, fontSize: 15, fontWeight: '600', textAlign: 'center', marginBottom: 8 },
-  rankRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  primary: { backgroundColor: COLORS.accent, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 32, marginTop: 16, width: '100%', maxWidth: 320, alignItems: 'center' },
+  resultLevel: { color: COLORS.text, fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  resultCard: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 24, paddingHorizontal: 48, alignItems: 'center' },
+  resultScore: { color: COLORS.ink, fontSize: 76, fontWeight: '900' },
+  resultOutOf: { color: COLORS.inkMuted, fontSize: 34, fontWeight: '800' },
+  resultTime: { color: COLORS.inkMuted, fontSize: 17, fontWeight: '700' },
+  resultSub: { color: COLORS.textMuted, fontSize: 15, fontWeight: '600', textAlign: 'center', marginTop: 14 },
+  rankRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
+  primary: { backgroundColor: COLORS.accent, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 32, marginTop: 18, width: '100%', maxWidth: 320, alignItems: 'center' },
   primaryText: { color: COLORS.accentText, fontSize: 20, fontWeight: '800' },
   outline: { borderWidth: 2, borderColor: COLORS.textMuted, borderRadius: 14, paddingVertical: 13, marginTop: 12, width: '100%', maxWidth: 320, alignItems: 'center' },
   outlineText: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
