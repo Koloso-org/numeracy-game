@@ -161,12 +161,21 @@ export function isCorrect(q: Question, given: string): boolean {
   return accepted.includes(g);
 }
 
-/** Draw `count` questions from a level, shuffled, without repeats in one game. */
-export function pickQuestions(level: Level, count: number, rand: () => number): Question[] {
-  const pool = [...BANK[level]];
-  for (let i = pool.length - 1; i > 0; i -= 1) {
+function shuffled<T>(arr: T[], rand: () => number): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rand() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+    [a[i], a[j]] = [a[j], a[i]];
   }
-  return pool.slice(0, Math.min(count, pool.length));
+  return a;
+}
+
+/** Draw `count` questions from a level, shuffled, without repeats in one game.
+ *  Multiple-choice options are also shuffled so the correct answer isn't
+ *  always in the same position. */
+export function pickQuestions(level: Level, count: number, rand: () => number): Question[] {
+  const chosen = shuffled(BANK[level], rand).slice(0, Math.min(count, BANK[level].length));
+  return chosen.map((q) =>
+    q.type === 'mc' && q.options ? { ...q, options: shuffled(q.options, rand) } : q,
+  );
 }
