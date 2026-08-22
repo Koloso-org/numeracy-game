@@ -408,13 +408,13 @@ const styles = StyleSheet.create({
   qPromptBig: { color: COLORS.ink, fontSize: 32, fontWeight: '800', textAlign: 'center' },
   qPromptSmall: { color: COLORS.ink, fontSize: 17, fontWeight: '700', textAlign: 'center' },
 
-  options: { marginTop: 12, gap: 10 },
+  options: { marginTop: 48, gap: 10 },
   option: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   optionText: { color: COLORS.ink, fontSize: 21, fontWeight: '800' },
   optionRight: { borderColor: COLORS.correct, backgroundColor: COLORS.correctBg },
   optionWrong: { borderColor: COLORS.wrong, backgroundColor: COLORS.wrongBg },
 
-  answerBox: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, height: 62, marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  answerBox: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, height: 62, marginTop: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   answerRight: { borderColor: COLORS.correct, backgroundColor: COLORS.correctBg },
   answerWrong: { borderColor: COLORS.wrong, backgroundColor: COLORS.wrongBg },
   answerText: { color: COLORS.ink, fontSize: 30, fontWeight: '800' },
