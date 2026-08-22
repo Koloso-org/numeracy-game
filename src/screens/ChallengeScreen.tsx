@@ -409,8 +409,8 @@ const styles = StyleSheet.create({
 
   // Answer area fills the space left below the question card (no overlap / scroll).
   answerArea: { flex: 1, marginTop: 40 },
-  options: { flex: 1, gap: 10 },
-  option: { flex: 1, minHeight: 44, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  options: { flex: 1, gap: 12 },
+  option: { flex: 1, minHeight: 44, maxHeight: 72, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'transparent', borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   optionText: { color: COLORS.ink, fontSize: 21, fontWeight: '800' },
   optionRight: { borderColor: COLORS.correct, backgroundColor: COLORS.correctBg },
   optionWrong: { borderColor: COLORS.wrong, backgroundColor: COLORS.wrongBg },
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   answerUnit: { color: COLORS.inkMuted, fontSize: 18, fontWeight: '800', marginLeft: 8 },
 
   keypad: { flex: 1, marginTop: 10, gap: 8 },
-  kpRow: { flex: 1, flexDirection: 'row', gap: 8 },
+  kpRow: { flex: 1, maxHeight: 64, flexDirection: 'row', gap: 8 },
   key: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   keyPressed: { opacity: 0.7 },
   keyText: { color: COLORS.ink, fontSize: 24, fontWeight: '800' },
