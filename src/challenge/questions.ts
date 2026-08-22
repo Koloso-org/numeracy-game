@@ -5,6 +5,8 @@
 //
 // Every answer here is independently re-derived in challenge.verify.ts.
 
+import { FND_BEGINNER, FND_EXPERT } from './foundationBank';
+
 export type Level = 'beginner' | 'expert';
 export type QType = 'mc' | 'entry';
 
@@ -30,6 +32,8 @@ export interface Question {
   /** Short unit hint shown next to the entry box, e.g. "cm²". */
   unit?: string;
   visual?: Visual;
+  /** Data-URI image (SVG) shown above the prompt — from the Koloso bank. */
+  image?: string;
 }
 
 // Cross-shaped cube net (six equal squares) used by the "net" visual.
@@ -139,7 +143,9 @@ const EXPERT: Question[] = [
     visual: { kind: 'net', grid: CUBE_NET, solid: 'Cube' } },
 ];
 
-export const BANK: Record<Level, Question[]> = { beginner: BEGINNER, expert: EXPERT };
+// Live bank: the Koloso Foundation (FND26) curriculum. The hand-authored
+// BEGINNER/EXPERT arrays above are kept as a fallback reference only.
+export const BANK: Record<Level, Question[]> = { beginner: FND_BEGINNER, expert: FND_EXPERT };
 
 /** Normalise a typed answer for comparison: lowercase, drop spaces, brackets,
  *  trailing units, and unify the fraction slash. */
@@ -148,9 +154,10 @@ export function normalise(s: string): string {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, '')
+    .replace(/,/g, '') // thousands separators: "1,000" == "1000"
     .replace(/[()]/g, '')
-    .replace(/[°]/g, '')
-    .replace(/(cm2|cm²|cm|units?)$/g, '');
+    .replace(/[°%]/g, '')
+    .replace(/(cm3|cm²|cm2|cm|m²|m2|units?)$/g, '');
 }
 
 export function isCorrect(q: Question, given: string): boolean {

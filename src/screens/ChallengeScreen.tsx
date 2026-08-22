@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../theme';
 import { Level, Question, isCorrect, pickQuestions } from '../challenge/questions';
 import ChallengeVisual from '../challenge/ChallengeVisual';
@@ -217,8 +217,9 @@ function ChallengeGame({
 
       <View style={styles.middleContainer}>
         <View style={styles.qCard}>
-          <Text style={q.visual ? styles.qPromptSmall : styles.qPromptBig}>{q.prompt}</Text>
+          <Text style={q.visual || q.image ? styles.qPromptSmall : styles.qPromptBig}>{q.prompt}</Text>
           {q.visual && <ChallengeVisual visual={q.visual} />}
+          {q.image ? <Image source={{ uri: q.image }} style={styles.qImage} resizeMode="contain" /> : null}
         </View>
 
         <View style={styles.answerZone}>
@@ -413,6 +414,7 @@ const styles = StyleSheet.create({
   qCard: { backgroundColor: '#FFFFFF', borderRadius: 18, paddingVertical: 18, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', minHeight: 88, flexShrink: 1 },
   qPromptBig: { color: COLORS.ink, fontSize: 30, fontWeight: '800', textAlign: 'center' },
   qPromptSmall: { color: COLORS.ink, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  qImage: { width: 168, height: 148, marginTop: 10 },
 
   // Answer zone is a compact grouped unit (options / keypad + SKIP); the root
   // spreads it evenly with the header and question zones.
