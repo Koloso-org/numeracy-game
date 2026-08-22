@@ -76,14 +76,6 @@ type Rand = () => number;
 const randInt = (rand: Rand, lo: number, hi: number): number =>
   lo + Math.floor(rand() * (hi - lo + 1));
 const pick = <T>(rand: Rand, arr: T[]): T => arr[Math.floor(rand() * arr.length)];
-const shuffle = <T>(rand: Rand, arr: T[]): T[] => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(rand() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-};
 
 // A candidate operation: given the current value, either produce the next rung
 // or return null when it can't keep the value a whole number within bounds.
@@ -170,11 +162,24 @@ export function makeStarter(level: LadderLevel, rand: Rand): Rung {
   return { label: `${a} × ${b}`, result: a * b };
 }
 
+// Selection weight per operation — favour the richer, multiplicative steps so
+// a chain isn't dominated by Add / Subtract. Add / Subtract are kept low but
+// non-zero so they still appear (and cover values where little else applies).
+function weightOf(label: string): number {
+  if (label === 'Add half of it') return 3;
+  if (label.startsWith('Increase by')) return 3;
+  if (label.startsWith('Add ') || label.startsWith('Subtract ')) return 1;
+  return 5; // Double it, Multiply by n, Halve it, Divide by k, Find a/b, Find p%
+}
+
 /** The next rung for a running value.
  *  - `prevLabel` avoids repeating the previous operation verbatim.
  *  - `avoid` is the value from *before* the current one; rejecting a step that
  *    returns to it blocks inverse operations (Double↔Halve, ×n↔÷n, Add k↔
  *    Subtract k, ×1.5↔⅔, …) that would undo the previous rung.
+ *
+ *  Among the operations that apply, the next step is chosen by weight, so the
+ *  chain leans on multiply / divide / fraction / percentage rather than Add.
  */
 export function nextStep(
   level: LadderLevel,
@@ -186,10 +191,22 @@ export function nextStep(
   const cfg = CONFIG[level];
   const ok = (c: Rung | null): c is Rung =>
     !!c && c.label !== prevLabel && c.result !== value && c.result !== avoid;
-  for (const op of shuffle(rand, OPS)) {
+
+  const cands: Rung[] = [];
+  for (const op of OPS) {
     const cand = op(value, cfg, rand);
-    if (ok(cand)) return cand;
+    if (ok(cand)) cands.push(cand);
   }
+  if (cands.length > 0) {
+    const weights = cands.map((c) => weightOf(c.label));
+    let roll = rand() * weights.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < cands.length; i += 1) {
+      roll -= weights[i];
+      if (roll < 0) return cands[i];
+    }
+    return cands[cands.length - 1];
+  }
+
   // Fallback: a small add/subtract that keeps the value in bounds and still
   // isn't a repeat, a no-op, or an inverse.
   for (let d = 1; d <= 8; d += 1) {
